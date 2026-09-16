@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.restaurant</groupId>
+    <artifactId>restaurant-microservices-backend</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>Restaurant Microservices Backend Aggregator</name>
+    <description>Root Maven aggregator for Restaurant Microservices</description>
+
+    <modules>
+        <module>service-discovery</module>
+        <module>api-gateway</module>
+        <module>auth-service</module>
+        <module>user-service</module>
+        <module>menu-service</module>
+        <module>inventory-service</module>
+        <module>table-service</module>
+        <module>order-service</module>
+        <module>report-service</module>
+    </modules>
+</project>
