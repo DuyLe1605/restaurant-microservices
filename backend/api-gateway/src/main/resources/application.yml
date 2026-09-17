@@ -1,0 +1,90 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # Auth Service
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: AuthenticationFilter
+
+        # User Service
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: AuthenticationFilter
+
+        # Menu Service
+        - id: menu-service
+          uri: lb://menu-service
+          predicates:
+            - Path=/api/menu/**,/api/recipes/**
+          filters:
+            - name: AuthenticationFilter
+
+        # Inventory Service
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/ingredients/**,/api/ingredient-categories/**,/api/inventory/**
+          filters:
+            - name: AuthenticationFilter
+
+        # Order Service
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**,/api/expenses/**
+          filters:
+            - name: AuthenticationFilter
+
+        # Order Service - Public (no auth)
+        - id: order-service-public
+          uri: lb://order-service
+          predicates:
+            - Path=/api/public-order/**
+
+        # Table Service
+        - id: table-service
+          uri: lb://table-service
+          predicates:
+            - Path=/api/tables/**,/api/reservations/**,/api/qr/**
+          filters:
+            - name: AuthenticationFilter
+
+        # Report Service
+        - id: report-service
+          uri: lb://report-service
+          predicates:
+            - Path=/api/dashboard/**,/api/reports/**
+          filters:
+            - name: AuthenticationFilter
+
+jwt:
+  secret: dGhpc0lzQVZlcnlMb25nU2VjcmV0S2V5Rm9yUmVzdGF1cmFudE1pY3Jvc2VydmljZXNKV1RUb2tlbjIwMjQ=
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
