@@ -38,8 +38,24 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(response, "Fetched users successfully"));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(
+            @RequestHeader(value = UserConstants.HEADER_USER_ID) String currentUserId) {
+        UserResponse response = userService.getUserById(Long.parseLong(currentUserId));
+        return ResponseEntity.ok(ApiResponse.ok(response, "Current user found"));
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(
+            @PathVariable Long id,
+            @RequestHeader(value = UserConstants.HEADER_USER_ID, required = false) String currentUserIdHeader,
+            @RequestHeader(value = UserConstants.HEADER_USER_ROLE, required = false) String currentUserRole) {
+        // IDOR protection: non-admin users cannot access other users' data
+        if (currentUserRole != null && !"ADMIN".equalsIgnoreCase(currentUserRole)) {
+            if (currentUserIdHeader == null || !id.toString().equals(currentUserIdHeader)) {
+                throw new com.restaurant.user.exception.ForbiddenException("Bạn không có quyền truy cập thông tin của tài khoản khác.");
+            }
+        }
         UserResponse response = userService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.ok(response, "User found"));
     }

@@ -59,9 +59,24 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 return exchange.getResponse().setComplete();
             }
 
-            // Add user info to headers for downstream services
+            // Extract claims
             var claims = jwtUtil.extractAllClaims(token);
+
+            // Check if user is inactive / locked
+            Object activeClaim = claims.get("active");
+            if (activeClaim != null && "false".equalsIgnoreCase(String.valueOf(activeClaim))) {
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
+
+            // Strip any client-spoofed headers first, then inject verified claims from JWT
             ServerHttpRequest modifiedRequest = request.mutate()
+                    .headers(httpHeaders -> {
+                        httpHeaders.remove("X-User-Id");
+                        httpHeaders.remove("X-User-Username");
+                        httpHeaders.remove("X-User-Role");
+                        httpHeaders.remove("X-User-Fullname");
+                    })
                     .header("X-User-Id", String.valueOf(claims.get("id")))
                     .header("X-User-Username", String.valueOf(claims.get("username")))
                     .header("X-User-Role", String.valueOf(claims.get("role")))

@@ -58,14 +58,18 @@ public class ReportEventConsumer {
     @Transactional
     public void handleStockUpdated(StockSnapshotEventDto event) {
         log.info("Received inventory.stock.updated event in report-service for ingredient id: {}", event.getIngredientId());
-        ReportStockSnapshot snapshot = ReportStockSnapshot.builder()
-                .ingredientId(event.getIngredientId())
-                .ingredientName(event.getIngredientName())
-                .currentQty(event.getCurrentQty())
-                .minStock(event.getMinStock())
-                .unit(event.getUnit())
-                .snapshotDate(event.getSnapshotDate())
-                .build();
+        ReportStockSnapshot snapshot = stockSnapshotRepository
+                .findByIngredientIdAndSnapshotDate(event.getIngredientId(), event.getSnapshotDate())
+                .orElse(ReportStockSnapshot.builder()
+                        .ingredientId(event.getIngredientId())
+                        .snapshotDate(event.getSnapshotDate())
+                        .build());
+
+        snapshot.setIngredientName(event.getIngredientName());
+        snapshot.setCurrentQty(event.getCurrentQty());
+        snapshot.setMinStock(event.getMinStock());
+        snapshot.setUnit(event.getUnit());
+
         stockSnapshotRepository.save(snapshot);
     }
 }

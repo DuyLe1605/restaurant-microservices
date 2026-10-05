@@ -13,4 +13,6 @@ public interface ReportStockSnapshotRepository extends JpaRepository<ReportStock
     @Query("SELECT s FROM ReportStockSnapshot s WHERE s.id IN " +
            "(SELECT MAX(s2.id) FROM ReportStockSnapshot s2 GROUP BY s2.ingredientId)")
     List<ReportStockSnapshot> findLatestSnapshotsPerIngredient();
+
+    java.util.Optional<ReportStockSnapshot> findByIngredientIdAndSnapshotDate(Long ingredientId, java.time.LocalDate snapshotDate);
 }
