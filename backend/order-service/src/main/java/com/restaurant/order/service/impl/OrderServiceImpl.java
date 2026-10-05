@@ -143,12 +143,18 @@ public class OrderServiceImpl implements OrderService {
         }
         detailRepository.saveAll(detailsToSave);
 
-        // Update table to OCCUPIED
+        // Update table to OCCUPIED (Fail-fast with transactional rollback to prevent orphan orders)
         if (request.getTableId() != null) {
             try {
-                tableClient.updateTableStatus(request.getTableId(), TableStatusDto.builder().status("OCCUPIED").build());
+                ApiResponse<TableDto> tableResp = tableClient.updateTableStatus(request.getTableId(), TableStatusDto.builder().status("OCCUPIED").build());
+                if (tableResp == null || tableResp.getData() == null) {
+                    throw new ConflictException("Không thể chiếm bàn #" + request.getTableId() + ": Dịch vụ bàn không phản hồi hợp lệ");
+                }
+            } catch (ConflictException ce) {
+                throw ce;
             } catch (Exception e) {
                 log.error("Failed to set table occupied: {}", e.getMessage());
+                throw new ConflictException("Không thể chiếm bàn #" + request.getTableId() + ": " + e.getMessage() + ". Đơn hàng đã được tự động hoàn tác để đảm bảo toàn vẹn dữ liệu.");
             }
         }
 

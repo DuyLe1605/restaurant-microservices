@@ -164,6 +164,7 @@ CREATE TABLE IF NOT EXISTS restaurant_table (
     capacity INT NOT NULL DEFAULT 4,
     status VARCHAR(20) NOT NULL DEFAULT 'FREE',
     order_token VARCHAR(64) UNIQUE,
+    version BIGINT NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
