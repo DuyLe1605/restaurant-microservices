@@ -48,12 +48,19 @@ public class OrderCompletedConsumer {
             return;
         }
 
+        // Idempotency check: prevent duplicate stock deduction if message delivered twice
+        String orderTag = "order #" + event.getOrderId();
+        if (issueRepository.existsByOrderTag(orderTag)) {
+            log.warn("Order completed event for order #{} has already been processed. Deduplication check triggered: skipping to prevent duplicate inventory deduction.", event.getOrderId());
+            return;
+        }
+
         // 1. Create completed InventoryIssue
         InventoryIssue issue = InventoryIssue.builder()
                 .issueType(IssueType.SALE)
                 .issueDate(LocalDate.now())
                 .status(IssueStatus.COMPLETED)
-                .note("Auto issue from completed order #" + event.getOrderId())
+                .note("Auto issue from completed " + orderTag)
                 .build();
         InventoryIssue savedIssue = issueRepository.save(issue);
 
