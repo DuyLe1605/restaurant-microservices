@@ -1,13 +1,10 @@
 import * as React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useLogin } from '@/hooks/use-auth';
-import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { UtensilsCrossed, Lock, User as UserIcon, Zap } from 'lucide-react';
-import { mockUsers } from '@/api/mock-data';
-import { Role } from '@/types/auth';
 
 export function LoginPage() {
   const [username, setUsername] = React.useState('admin');
@@ -15,7 +12,6 @@ export function LoginPage() {
   const [rememberMe, setRememberMe] = React.useState(true);
   const navigate = useNavigate();
   const loginMutation = useLogin();
-  const storeLogin = useAuthStore((state) => state.login);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,19 +21,19 @@ export function LoginPage() {
       { username, password, rememberMe },
       {
         onSuccess: () => navigate('/'),
-        onError: () => {
-          const matched = mockUsers.find(u => u.username === username) || mockUsers[0];
-          storeLogin('mock-jwt-token-' + matched.role.toLowerCase(), matched);
-          navigate('/');
-        }
       }
     );
   };
 
-  const handleInstantDemoLogin = (role: Role, userIndex: number = 0) => {
-    const user = mockUsers[userIndex] || mockUsers[0];
-    storeLogin('mock-jwt-token-' + role.toLowerCase(), user);
-    navigate('/');
+  const handleQuickFill = (u: string, p: string) => {
+    setUsername(u);
+    setPassword(p);
+    loginMutation.mutate(
+      { username: u, password: p, rememberMe },
+      {
+        onSuccess: () => navigate('/'),
+      }
+    );
   };
 
   return (
@@ -51,11 +47,11 @@ export function LoginPage() {
           <CardDescription>Hệ thống Quản lý Nhà hàng Đa dịch vụ (Microservices)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Quick Demo Login Bar for Evaluators */}
+          {/* Quick Demo Fill & Login via Real Auth API */}
           <div className="rounded-xl bg-orange-50/80 dark:bg-orange-950/20 border border-orange-200/80 dark:border-orange-800/40 p-3.5 space-y-2.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-orange-800 dark:text-orange-300">
               <Zap className="h-4 w-4 text-orange-500 fill-orange-500" />
-              <span>Đăng nhập nhanh kiểm thử (1-Click Verification):</span>
+              <span>Tài khoản mẫu kiểm thử (1-Click Fill & Authenticate):</span>
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               <Button
@@ -63,7 +59,8 @@ export function LoginPage() {
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
-                onClick={() => handleInstantDemoLogin('ADMIN', 0)}
+                onClick={() => handleQuickFill('admin', 'admin123')}
+                disabled={loginMutation.isPending}
               >
                 👑 Admin
               </Button>
@@ -72,7 +69,8 @@ export function LoginPage() {
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
-                onClick={() => handleInstantDemoLogin('MANAGER', 1)}
+                onClick={() => handleQuickFill('manager', 'manager123')}
+                disabled={loginMutation.isPending}
               >
                 💼 Quản lý
               </Button>
@@ -81,7 +79,8 @@ export function LoginPage() {
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
-                onClick={() => handleInstantDemoLogin('USER', 2)}
+                onClick={() => handleQuickFill('waiter', 'waiter123')}
+                disabled={loginMutation.isPending}
               >
                 🍽️ Phục vụ
               </Button>
@@ -92,7 +91,8 @@ export function LoginPage() {
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
-                onClick={() => handleInstantDemoLogin('USER', 3)}
+                onClick={() => handleQuickFill('chef', 'chef123')}
+                disabled={loginMutation.isPending}
               >
                 👨‍🍳 Bếp trưởng
               </Button>
@@ -101,7 +101,8 @@ export function LoginPage() {
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
-                onClick={() => handleInstantDemoLogin('USER', 4)}
+                onClick={() => handleQuickFill('cashier', 'cashier123')}
+                disabled={loginMutation.isPending}
               >
                 💵 Thu ngân
               </Button>
