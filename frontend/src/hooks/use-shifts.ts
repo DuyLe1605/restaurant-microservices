@@ -5,58 +5,22 @@ import { toast } from 'sonner';
 const CURRENT_SHIFT_KEY = 'gourmet_haven_active_shift';
 const SHIFT_HISTORY_KEY = 'gourmet_haven_shift_history';
 
-const defaultShift: WorkShift = {
-  id: 1,
-  shiftCode: 'CA-SANG-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  cashierName: 'Nguyễn Văn Quản Lý',
-  startTime: new Date(Date.now() - 4 * 3600000).toISOString(),
-  status: 'OPEN',
-  openingCash: 2000000, // 2 triệu tiền lẻ thối
-  cashSales: 4850000,
-  cardSales: 7920000,
-  totalSales: 12770000,
-  orderCount: 14,
-  expectedCash: 6850000, // 2.000.000 + 4.850.000
-  createdAt: new Date(Date.now() - 4 * 3600000).toISOString(),
-};
-
-const defaultHistory: WorkShift[] = [
-  {
-    id: 99,
-    shiftCode: 'CA-TOI-HOM-QUA',
-    cashierName: 'Trần Thị Thu Ngân',
-    startTime: new Date(Date.now() - 20 * 3600000).toISOString(),
-    endTime: new Date(Date.now() - 12 * 3600000).toISOString(),
-    status: 'CLOSED',
-    openingCash: 2000000,
-    cashSales: 9400000,
-    cardSales: 15300000,
-    totalSales: 24700000,
-    orderCount: 28,
-    expectedCash: 11400000,
-    actualCash: 11400000,
-    difference: 0,
-    handoverNote: 'Ca tối đông khách cuối tuần, két tiền khớp 100%. Đã bàn giao lại đủ 2 triệu tiền mồi.',
-    createdAt: new Date(Date.now() - 20 * 3600000).toISOString(),
-  },
-];
-
 export function useShifts() {
   const [currentShift, setCurrentShift] = React.useState<WorkShift | null>(() => {
     try {
       const stored = localStorage.getItem(CURRENT_SHIFT_KEY);
-      return stored ? JSON.parse(stored) : defaultShift;
+      return stored ? JSON.parse(stored) : null;
     } catch {
-      return defaultShift;
+      return null;
     }
   });
 
   const [history, setHistory] = React.useState<WorkShift[]>(() => {
     try {
       const stored = localStorage.getItem(SHIFT_HISTORY_KEY);
-      return stored ? JSON.parse(stored) : defaultHistory;
+      return stored ? JSON.parse(stored) : [];
     } catch {
-      return defaultHistory;
+      return [];
     }
   });
 
