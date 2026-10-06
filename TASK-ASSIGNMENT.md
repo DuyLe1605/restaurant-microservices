@@ -146,7 +146,7 @@
 
 ### 5. Đàm Quang Sáng — Frontend Developer (20%)
 
-**Phụ trách:** Frontend Menu, Inventory, Order, Report Pages, Mock Data & Tài Liệu Phản Biện
+**Phụ trách:** Frontend Menu, Inventory, Order, Report Pages & Tài Liệu Phản Biện
 
 #### 🥗 Menu & Ingredient Pages
 - [`menu.ts`](frontend/src/types/menu.ts), [`ingredient.ts`](frontend/src/types/ingredient.ts): Khai báo kiểu TypeScript cho thực đơn, danh mục và nguyên liệu.
@@ -170,10 +170,9 @@
   - [`public-order.tsx`](frontend/src/pages/public/public-order.tsx): Giao diện khách hàng tự quét mã QR tại bàn để gọi món trên điện thoại.
   - [`expense-list.tsx`](frontend/src/pages/expense/expense-list.tsx): Trang theo dõi và thêm mới các khoản chi phí hoạt động.
 
-#### 📈 Report Pages & Mock Data
+#### 📈 Report Pages
 - [`report.ts`](frontend/src/types/report.ts), [`report.api.ts`](frontend/src/api/report.api.ts), [`use-reports.ts`](frontend/src/hooks/use-reports.ts): Types, API và hooks báo cáo thống kê.
 - [`revenue-report.tsx`](frontend/src/pages/report/revenue-report.tsx), [`stock-report.tsx`](frontend/src/pages/report/stock-report.tsx): Màn hình biểu đồ Recharts phân tích doanh thu theo kỳ và báo cáo biến động tồn kho.
-- [`mock-data.ts`](frontend/src/api/mock-data.ts): Bộ dữ liệu giả lập phục vụ phát triển giao diện nhanh độc lập với backend.
 
 #### 🛡️ Phase 12 Hardening & Tài Liệu Phản Biện Đồ Án
 - [`generate_defense_doc.js`](backend-server/generate_defense_doc.js): Script tự động tạo tài liệu Word chuẩn format.

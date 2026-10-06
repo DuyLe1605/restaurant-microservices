@@ -4,23 +4,50 @@ import { useLogin } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { UtensilsCrossed, Lock, User as UserIcon, Zap } from 'lucide-react';
+import { UtensilsCrossed, Lock, User as UserIcon, Zap, AlertCircle } from 'lucide-react';
 
 export function LoginPage() {
   const [username, setUsername] = React.useState('admin');
   const [password, setPassword] = React.useState('admin123');
   const [rememberMe, setRememberMe] = React.useState(true);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
   const navigate = useNavigate();
   const loginMutation = useLogin();
 
+  const handleInputChange = (field: 'username' | 'password', value: string) => {
+    setErrorMessage(null);
+    if (field === 'username') setUsername(value);
+    if (field === 'password') setPassword(value);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) return;
+    if (!username.trim() || !password) {
+      setErrorMessage('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!');
+      return;
+    }
 
+    setErrorMessage(null);
     loginMutation.mutate(
-      { username, password, rememberMe },
+      { username: username.trim(), password, rememberMe },
       {
-        onSuccess: () => navigate('/'),
+        onSuccess: () => {
+          navigate('/');
+        },
+        onError: (err: any) => {
+          let message = 'Đăng nhập không thành công. Vui lòng thử lại!';
+          if (err.response?.data?.message) {
+            message = err.response.data.message;
+          } else if (err.code === 'ERR_NETWORK' || err.message === 'Network Error' || !err.response) {
+            message = 'Không thể kết nối tới máy chủ API Gateway (8080). Vui lòng kiểm tra hạ tầng backend!';
+          } else if (err.response?.status === 401 || err.response?.status === 400) {
+            message = 'Tên đăng nhập hoặc mật khẩu không chính xác!';
+          } else if (err.response?.status === 403) {
+            message = 'Tài khoản của bạn đã bị khóa hoặc không có quyền truy cập!';
+          }
+          setErrorMessage(message);
+        },
       }
     );
   };
@@ -28,12 +55,7 @@ export function LoginPage() {
   const handleQuickFill = (u: string, p: string) => {
     setUsername(u);
     setPassword(p);
-    loginMutation.mutate(
-      { username: u, password: p, rememberMe },
-      {
-        onSuccess: () => navigate('/'),
-      }
-    );
+    setErrorMessage(null);
   };
 
   return (
@@ -47,11 +69,11 @@ export function LoginPage() {
           <CardDescription>Hệ thống Quản lý Nhà hàng Đa dịch vụ (Microservices)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Quick Demo Fill & Login via Real Auth API */}
+          {/* Quick Demo Fill Credentials */}
           <div className="rounded-xl bg-orange-50/80 dark:bg-orange-950/20 border border-orange-200/80 dark:border-orange-800/40 p-3.5 space-y-2.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-orange-800 dark:text-orange-300">
               <Zap className="h-4 w-4 text-orange-500 fill-orange-500" />
-              <span>Tài khoản mẫu kiểm thử (1-Click Fill & Authenticate):</span>
+              <span>Điền nhanh tài khoản kiểm thử mẫu:</span>
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               <Button
@@ -60,7 +82,6 @@ export function LoginPage() {
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
                 onClick={() => handleQuickFill('admin', 'admin123')}
-                disabled={loginMutation.isPending}
               >
                 👑 Admin
               </Button>
@@ -70,7 +91,6 @@ export function LoginPage() {
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
                 onClick={() => handleQuickFill('manager', 'manager123')}
-                disabled={loginMutation.isPending}
               >
                 💼 Quản lý
               </Button>
@@ -80,7 +100,6 @@ export function LoginPage() {
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
                 onClick={() => handleQuickFill('waiter', 'waiter123')}
-                disabled={loginMutation.isPending}
               >
                 🍽️ Phục vụ
               </Button>
@@ -92,7 +111,6 @@ export function LoginPage() {
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
                 onClick={() => handleQuickFill('chef', 'chef123')}
-                disabled={loginMutation.isPending}
               >
                 👨‍🍳 Bếp trưởng
               </Button>
@@ -102,7 +120,6 @@ export function LoginPage() {
                 variant="outline"
                 className="h-8 text-xs font-semibold bg-white dark:bg-card border-orange-200 hover:bg-orange-100"
                 onClick={() => handleQuickFill('cashier', 'cashier123')}
-                disabled={loginMutation.isPending}
               >
                 💵 Thu ngân
               </Button>
@@ -114,9 +131,17 @@ export function LoginPage() {
               <span className="w-full border-t border-border/80" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground font-medium">Hoặc đăng nhập mật khẩu</span>
+              <span className="bg-card px-2 text-muted-foreground font-medium">Xác thực hệ thống</span>
             </div>
           </div>
+
+          {/* Error Banner when exception occurs */}
+          {errorMessage && (
+            <div className="rounded-lg bg-destructive/15 border border-destructive/30 p-3 text-xs text-destructive flex items-start gap-2 animate-in fade-in duration-200">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
+              <span className="font-medium leading-relaxed">{errorMessage}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
@@ -125,8 +150,9 @@ export function LoginPage() {
                 <Input
                   placeholder="Nhập tên đăng nhập"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
                   className="pl-9"
+                  disabled={loginMutation.isPending}
                   required
                 />
                 <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -140,8 +166,9 @@ export function LoginPage() {
                   type="password"
                   placeholder="Nhập mật khẩu"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
                   className="pl-9"
+                  disabled={loginMutation.isPending}
                   required
                 />
                 <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -155,6 +182,7 @@ export function LoginPage() {
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="rounded border-border text-primary focus:ring-primary"
+                  disabled={loginMutation.isPending}
                 />
                 Ghi nhớ đăng nhập
               </label>
@@ -166,7 +194,7 @@ export function LoginPage() {
               className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold py-2.5 shadow-md shadow-orange-500/20"
               disabled={loginMutation.isPending}
             >
-              {loginMutation.isPending ? 'Đang xác thực...' : 'Đăng nhập'}
+              {loginMutation.isPending ? 'Đang xác thực qua Gateway...' : 'Đăng nhập'}
             </Button>
           </form>
         </CardContent>
