@@ -35,6 +35,11 @@ public class RestaurantTable {
     @Column(name = "order_token", unique = true, length = 64)
     private String orderToken;
 
+    @Version
+    @Column(name = "version")
+    @Builder.Default
+    private Long version = 0L;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
