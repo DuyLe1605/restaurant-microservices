@@ -8,6 +8,7 @@ import com.restaurant.order.entity.SaleOrderDetail;
 import com.restaurant.order.enums.OrderDetailStatus;
 import com.restaurant.order.enums.OrderStatus;
 import com.restaurant.order.exception.BadRequestException;
+import com.restaurant.order.exception.ConflictException;
 import com.restaurant.order.exception.ResourceNotFoundException;
 import com.restaurant.order.messaging.OrderEventPublisher;
 import com.restaurant.order.repository.SaleOrderDetailRepository;

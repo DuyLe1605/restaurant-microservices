@@ -1,0 +1,408 @@
+{
+  "info": {
+    "_postman_id": "c1a2e3f4-5b6d-7e8f-9a0b-1c2d3e4f5a6b",
+    "name": "Restaurant Microservices - Le Minh Duy Collection",
+    "description": "Bộ Postman Collection kiểm thử đầy đủ các Service do Lê Minh Duy phụ trách: Auth Service (8081), Table Service (8086), Order Service (8085) và API Gateway (8080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "authUrl",
+      "value": "http://localhost:8081/api",
+      "type": "string"
+    },
+    {
+      "key": "tableUrl",
+      "value": "http://localhost:8086/api",
+      "type": "string"
+    },
+    {
+      "key": "orderUrl",
+      "value": "http://localhost:8085/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth Service (:8081 & Gateway :8080)",
+      "item": [
+        {
+          "name": "Login (Đăng nhập - Tự lưu JWT Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "    console.log('Token saved:', jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\",\n  \"rememberMe\": true\n}"
+            },
+            "url": {
+              "raw": "{{authUrl}}/auth/login",
+              "host": ["{{authUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Đăng nhập xác thực và tự động lưu chuỗi JWT Token vào biến `{{token}}` cho toàn bộ collection."
+          }
+        },
+        {
+          "name": "Login qua API Gateway (:8080)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/auth/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Kiểm thử định tuyến đăng nhập qua Gateway cổng 8080."
+          }
+        },
+        {
+          "name": "Register New User (Đăng ký tài khoản)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"Lê Minh Duy Test\",\n  \"username\": \"duytest\",\n  \"password\": \"123456\",\n  \"confirmPassword\": \"123456\",\n  \"role\": \"USER\"\n}"
+            },
+            "url": {
+              "raw": "{{authUrl}}/auth/register",
+              "host": ["{{authUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Table Service (:8086 & Gateway :8080)",
+      "item": [
+        {
+          "name": "Get All Tables (Lấy danh sách bàn)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{tableUrl}}/tables",
+              "host": ["{{tableUrl}}"],
+              "path": ["tables"]
+            }
+          }
+        },
+        {
+          "name": "Get Table By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{tableUrl}}/tables/1",
+              "host": ["{{tableUrl}}"],
+              "path": ["tables", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Table Status (Đổi trạng thái bàn)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OCCUPIED\"\n}"
+            },
+            "url": {
+              "raw": "{{tableUrl}}/tables/1/status",
+              "host": ["{{tableUrl}}"],
+              "path": ["tables", "1", "status"]
+            }
+          }
+        },
+        {
+          "name": "Get QR Token By Table ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{tableUrl}}/tables/1/qr-token",
+              "host": ["{{tableUrl}}"],
+              "path": ["tables", "1", "qr-token"]
+            }
+          }
+        },
+        {
+          "name": "Get All Reservations (Danh sách đặt bàn)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{tableUrl}}/reservations",
+              "host": ["{{tableUrl}}"],
+              "path": ["reservations"]
+            }
+          }
+        },
+        {
+          "name": "Create Reservation (Đặt bàn trước)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Nguyễn Văn Khách\",\n  \"customerPhone\": \"0988776655\",\n  \"partySize\": 4,\n  \"reservationTime\": \"2026-10-10T19:00:00\",\n  \"tableId\": 1,\n  \"note\": \"Bàn view cửa sổ\"\n}"
+            },
+            "url": {
+              "raw": "{{tableUrl}}/reservations",
+              "host": ["{{tableUrl}}"],
+              "path": ["reservations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Order Service (:8085 & Gateway :8080)",
+      "item": [
+        {
+          "name": "Get All Orders (Lấy danh sách đơn hàng)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders",
+              "host": ["{{orderUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders/1",
+              "host": ["{{orderUrl}}"],
+              "path": ["orders", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Order (Tạo đơn hàng mới - Gọi Feign Table)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": 1,\n  \"orderSource\": \"DINE_IN\",\n  \"items\": [\n    {\n      \"menuId\": 1,\n      \"qty\": 2,\n      \"note\": \"Ít đá, ít đường\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{orderUrl}}/orders",
+              "host": ["{{orderUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Pay Order (Thanh toán đơn - Kích hoạt RabbitMQ)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders/1/pay",
+              "host": ["{{orderUrl}}"],
+              "path": ["orders", "1", "pay"]
+            },
+            "description": "Thanh toán hóa đơn, chuyển trạng thái sang PAID và phát event order.paid sang RabbitMQ."
+          }
+        },
+        {
+          "name": "Get Order Invoice (Hóa đơn thanh toán)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/orders/1/invoice",
+              "host": ["{{orderUrl}}"],
+              "path": ["orders", "1", "invoice"]
+            }
+          }
+        },
+        {
+          "name": "Get Expenses List (Danh sách chi phí)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/expenses",
+              "host": ["{{orderUrl}}"],
+              "path": ["expenses"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Public QR Ordering (Khách tự gọi món qua QR)",
+      "item": [
+        {
+          "name": "Start Order By QR Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/public-order/table/QR-TABLE-1",
+              "host": ["{{orderUrl}}"],
+              "path": ["public-order", "table", "QR-TABLE-1"]
+            }
+          }
+        },
+        {
+          "name": "Submit Public Order By QR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": 1,\n  \"qrToken\": \"QR-TABLE-1\",\n  \"items\": [\n    {\n      \"menuId\": 1,\n      \"qty\": 1,\n      \"note\": \"Không cay\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{orderUrl}}/public-order/submit",
+              "host": ["{{orderUrl}}"],
+              "path": ["public-order", "submit"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
