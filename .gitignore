@@ -13,3 +13,8 @@ dist/
 .vscode/
 *.swp
 *.swo
+*generate_commits*
+run_commits.js
+docker-compose-duy.yml
+start_duy_services.bat
+.env

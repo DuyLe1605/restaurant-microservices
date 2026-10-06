@@ -25,6 +25,7 @@
 | **Table Service** | Entity, DTOs, Service layer, Controllers (Table, Reservation, QR) |
 | **Order Service** | Entity (SaleOrder, Expense), DTOs, Service layer, Order Controller, Public Order (QR Self-Ordering), Kitchen Controller |
 | **Documentation** | README, Backend docs |
+| **Phase 12 Hardening** | Fail-fast rollback trong createOrder khi chiếm bàn lỗi, cấu hình Feign timeouts cho order-service, bổ sung version column trong DB init |
 
 ---
 
@@ -38,6 +39,7 @@
 | **User Service** | Entity, Repository, Config, DTOs, Exceptions, Service/Controller, RabbitMQ messaging |
 | **Report Service** | Entity, Config, DTOs, Repository, Service/Controller, RabbitMQ Event Consumer |
 | **Frontend** | Table list page, Reservation list page, QR manage page |
+| **Phase 12 Hardening** | Khử độc header giả mạo tại Gateway, kiểm tra cờ active, chống IDOR và thêm /me tại user-service, idempotent upsert stock snapshot |
 
 ---
 
@@ -55,6 +57,7 @@
 | **Dashboard** | Dashboard page |
 | **Utilities** | Format currency, Format date, Constants |
 | **Frontend Docs** | Frontend DOCUMENTATION.md, IMPLEMENTATION.md, TRACKING.md |
+| **Phase 12 Hardening** | Khóa lạc quan @Version cho RestaurantTable, bắt ObjectOptimisticLockingFailureException, kiểm tra xung đột trạng thái bàn |
 
 ---
 
@@ -67,6 +70,7 @@
 | **Menu Service** | Entity, Config, DTOs, Repository, Exceptions, Service (MenuItem + Recipe), Controllers, OpenFeign client |
 | **Inventory Service** | Entity, Enums, Config, DTOs, Repository, Exceptions, Service layer, Controllers, RabbitMQ messaging, OpenFeign client |
 | **Backend Server** | Express.js backend server setup |
+| **Phase 12 Hardening** | Idempotent consumer khử trùng thông điệp existsByOrderTag trong OrderCompletedConsumer, cấu hình Feign timeouts inventory |
 
 ---
 
@@ -81,6 +85,7 @@
 | **Order Frontend** | Order types, Expense types, API clients, Hooks, Order list/create pages, Invoice view, Kitchen display, Public order, Expense list |
 | **Report Frontend** | Report types, API, Hooks, Revenue report page, Stock report page |
 | **Mock Data** | Mock data for development/testing |
+| **Phase 12 Hardening** | Viết công cụ generate_defense_doc.js, xuất bản tài liệu Word GIAI_DAP_BAO_VE_MON_HOC_SOA_MICROSERVICES.docx 10 câu hỏi bảo vệ đồ án |
 
 ---
 
@@ -99,6 +104,7 @@
 | Phase 9 | 29-30/09 | Report Service + FE Report | Hưng, Sáng |
 | Phase 10 | 01-02/10 | User Management, Dashboard, Utilities | Đức, Sáng |
 | Phase 11 | 02-04/10 | Documentation + Integration | Duy, Đức, Mạnh |
+| Phase 12 | 05-06/10 | Security Hardening, Idempotency, Concurrency & Defense Q&A Doc | Duy, Hưng, Mạnh, Đức, Sáng |
 
 ---
 

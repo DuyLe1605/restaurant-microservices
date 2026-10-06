@@ -1,4 +1,4 @@
-﻿# 🍽️ Restaurant Management System - Microservices
+# 🍽️ Restaurant Management System - Microservices
 
 Hệ thống quản lý nhà hàng xây dựng theo kiến trúc Microservices.
 Dự án môn học **Phần mềm hướng dịch vụ (SOA)**.
@@ -121,6 +121,15 @@ D:\restaurant-microservices\
 | 8 | Report + Dashboard | 9 | 6 |
 | 9 | Frontend remaining pages | — | 19 |
 | 10 | Integration + Polish | 7 | 7 |
+| 11 | Documentation & Deliverables | 4 | 3 |
+| 12 | Hardening: Idempotency, Concurrency, Security & Defense Q&A | 5 | 2 |
+
+---
+
+## 🎓 Tài Liệu Bảo Vệ Đồ Án Môn Học
+
+- **File Word Báo Cáo Giải Đáp 10 Câu Hỏi Bảo Vệ**: `GIAI_DAP_BAO_VE_MON_HOC_SOA_MICROSERVICES.docx` (Chi tiết kiến trúc, bảng biểu, trích dẫn code và toàn bộ các giải pháp khắc phục lỗi phân tán).
+- **Công cụ sinh tài liệu tự động**: `backend-server/generate_defense_doc.js`.
 
 ---
 
