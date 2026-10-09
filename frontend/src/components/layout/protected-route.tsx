@@ -15,7 +15,8 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    const fallbackPath = user.role === 'USER' ? '/tables' : '/dashboard';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return <Outlet />;

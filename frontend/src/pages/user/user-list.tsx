@@ -66,10 +66,15 @@ export function UserListPage() {
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passwordModalUser || !currentPassword || !newPassword) return;
+    if (!passwordModalUser || !newPassword) return;
 
-    changePasswordMutation.mutate({ id: passwordModalUser.id, payload: { oldPassword: currentPassword, newPassword } });
+    changePasswordMutation.mutate({
+      id: passwordModalUser.id,
+      payload: { currentPassword: currentPassword || '', oldPassword: currentPassword || '', newPassword },
+    });
     setPasswordModalUser(null);
+    setCurrentPassword('');
+    setNewPassword('');
   };
 
   if (isLoading) {
@@ -204,13 +209,13 @@ export function UserListPage() {
       >
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Mật khẩu hiện tại</label>
-            <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Mật khẩu hiện tại (Tùy chọn cho Quản trị viên)</label>
+            <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Để trống nếu reset mật khẩu" />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1 block">Mật khẩu mới</label>
-            <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+            <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} placeholder="Tối thiểu 6 ký tự" />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

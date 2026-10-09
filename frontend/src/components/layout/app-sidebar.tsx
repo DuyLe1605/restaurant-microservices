@@ -36,7 +36,7 @@ const navSections: NavSection[] = [
   {
     title: 'TỔNG QUAN',
     items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER'] },
     ],
   },
   {
@@ -53,21 +53,21 @@ const navSections: NavSection[] = [
   {
     title: 'ẨM THỰC & ĐỊNH LƯỢNG',
     items: [
-      { name: 'Thực đơn & Công thức', href: '/menu', icon: BookOpen, badge: 'BOM', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+      { name: 'Thực đơn & Công thức', href: '/menu', icon: BookOpen, badge: 'BOM', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400', roles: ['ADMIN', 'MANAGER'] },
     ],
   },
   {
     title: 'KHO & NGUYÊN LIỆU',
     items: [
-      { name: 'Nguyên liệu kho', href: '/ingredients', icon: Apple },
-      { name: 'Nhập / Xuất kho', href: '/inventory/receipts', icon: Boxes },
+      { name: 'Nguyên liệu kho', href: '/ingredients', icon: Apple, roles: ['ADMIN', 'MANAGER'] },
+      { name: 'Nhập / Xuất kho', href: '/inventory/receipts', icon: Boxes, roles: ['ADMIN', 'MANAGER'] },
     ],
   },
   {
     title: 'TÀI CHÍNH & BÁO CÁO',
     items: [
-      { name: 'Sổ chi phí vận hành', href: '/expenses', icon: DollarSign },
-      { name: 'Báo cáo doanh thu', href: '/reports/revenue', icon: BarChart3 },
+      { name: 'Sổ chi phí vận hành', href: '/expenses', icon: DollarSign, roles: ['ADMIN', 'MANAGER'] },
+      { name: 'Báo cáo doanh thu', href: '/reports/revenue', icon: BarChart3, roles: ['ADMIN', 'MANAGER'] },
       { name: 'Báo cáo tồn kho', href: '/reports/stock', icon: BarChart3 },
     ],
   },

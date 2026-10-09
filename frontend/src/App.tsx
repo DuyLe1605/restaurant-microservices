@@ -27,6 +27,15 @@ import { PublicOrderPage } from '@/pages/public/public-order';
 import { KitchenDisplayPage } from '@/pages/kitchen/kitchen-display';
 import { ShiftManagePage } from '@/pages/shift/shift-manage';
 
+import { useAuthStore } from '@/stores/auth-store';
+
+function RootRedirect() {
+  const { user } = useAuthStore();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'USER') return <Navigate to="/tables" replace />;
+  return <Navigate to="/dashboard" replace />;
+}
+
 export function App() {
   return (
     <Routes>
@@ -38,26 +47,37 @@ export function App() {
       {/* Protected Layout Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
+          {/* Smart Root Redirect by Role */}
+          <Route path="/" element={<RootRedirect />} />
+
+          {/* Common Operations: ADMIN, MANAGER, USER (Staff: Phục vụ, Thu ngân, Bếp) */}
+          <Route path="/tables" element={<TableListPage />} />
+          <Route path="/reservations" element={<ReservationListPage />} />
           <Route path="/orders" element={<OrderListPage />} />
           <Route path="/orders/new" element={<OrderCreatePage />} />
           <Route path="/orders/create" element={<OrderCreatePage />} />
           <Route path="/kitchen" element={<KitchenDisplayPage />} />
           <Route path="/shifts" element={<ShiftManagePage />} />
           <Route path="/orders/:id/invoice" element={<InvoiceViewPage />} />
-          <Route path="/tables" element={<TableListPage />} />
-          <Route path="/reservations" element={<ReservationListPage />} />
-          <Route path="/menu" element={<MenuListPage />} />
-          <Route path="/recipes" element={<RecipeManagePage />} />
-          <Route path="/ingredients" element={<IngredientListPage />} />
-          <Route path="/inventory/receipts" element={<ReceiptListPage />} />
-          <Route path="/inventory/issues" element={<IssueListPage />} />
           <Route path="/qr" element={<QrManagePage />} />
-          <Route path="/expenses" element={<ExpenseListPage />} />
-          <Route path="/reports/revenue" element={<RevenueReportPage />} />
           <Route path="/reports/stock" element={<StockReportPage />} />
-          <Route path="/users" element={<UserListPage />} />
+
+          {/* Operational Management: ADMIN & MANAGER Only */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']} />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/menu" element={<MenuListPage />} />
+            <Route path="/recipes" element={<RecipeManagePage />} />
+            <Route path="/ingredients" element={<IngredientListPage />} />
+            <Route path="/inventory/receipts" element={<ReceiptListPage />} />
+            <Route path="/inventory/issues" element={<IssueListPage />} />
+            <Route path="/expenses" element={<ExpenseListPage />} />
+            <Route path="/reports/revenue" element={<RevenueReportPage />} />
+          </Route>
+
+          {/* System Administration: ADMIN Only */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+            <Route path="/users" element={<UserListPage />} />
+          </Route>
         </Route>
       </Route>
 

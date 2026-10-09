@@ -53,6 +53,18 @@ export const useCreateTable = () => {
   });
 };
 
+export const useUpdateTable = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<RestaurantTable> }) => tableApi.update(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tables'] });
+      toast.success('Cập nhật thông tin bàn thành công');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi cập nhật'),
+  });
+};
+
 export const useUpdateTableStatus = () => {
   const qc = useQueryClient();
   return useMutation({

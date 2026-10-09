@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import {
   useTables,
   useCreateTable,
+  useUpdateTable,
   useUpdateTableStatus,
   useDeleteTable,
   useTransferTable,
   useMergeTables,
 } from '@/hooks/use-tables';
 import { useOrders } from '@/hooks/use-orders';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
 import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -36,10 +38,12 @@ import {
 } from 'lucide-react';
 import { RestaurantTable, TableStatus } from '@/types/table';
 import { SaleOrder } from '@/types/order';
-import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/auth-store';
 
 export function TableListPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const canManageTables = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   // Queries
   const { data: tables, isLoading: isTablesLoading } = useTables();
@@ -47,6 +51,7 @@ export function TableListPage() {
 
   // Mutations
   const createMutation = useCreateTable();
+  const updateTableMutation = useUpdateTable();
   const updateStatusMutation = useUpdateTableStatus();
   const deleteMutation = useDeleteTable();
   const transferMutation = useTransferTable();
@@ -133,8 +138,8 @@ export function TableListPage() {
   const handleSaveTable = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingTable) {
-      updateStatusMutation.mutate(
-        { id: editingTable.id, status },
+      updateTableMutation.mutate(
+        { id: editingTable.id, payload: { number, capacity, status } },
         { onSuccess: () => setDialogOpen(false) }
       );
     } else {
@@ -203,14 +208,16 @@ export function TableListPage() {
         title="Sơ Đồ Bàn Ăn"
         description="Quản lý bàn theo sức chứa, đổi trạng thái, chuyển bàn, ghép bàn và theo dõi đơn hàng tại bàn thời gian thực."
       >
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/qr')} className="gap-2">
-            <QrCode className="h-4 w-4" /> Quản Lý QR Bàn
-          </Button>
-          <Button onClick={handleOpenAdd} className="gap-2">
-            <Plus className="h-4 w-4" /> Thêm Bàn Mới
-          </Button>
-        </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/qr')} className="gap-2">
+              <QrCode className="h-4 w-4" /> Quản Lý QR Bàn
+            </Button>
+            {canManageTables && (
+              <Button onClick={handleOpenAdd} className="gap-2">
+                <Plus className="h-4 w-4" /> Thêm Bàn Mới
+              </Button>
+            )}
+          </div>
       </PageHeader>
 
       {/* Filter and Search Bar */}
