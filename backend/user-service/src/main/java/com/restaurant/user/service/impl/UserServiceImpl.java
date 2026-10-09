@@ -19,7 +19,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,10 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserEventPublisher eventPublisher;
+    private final RestTemplate restTemplate;
+
+    @Value("${auth.service.url:http://localhost:8081}")
+    private String authServiceUrl;
 
     @Override
     @Transactional(readOnly = true)
@@ -73,6 +82,9 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
+        // Sync new user to auth_db immediately
+        syncToAuthService(savedUser.getUsername(), savedUser.getPassword(), savedUser.getFullname(), savedUser.getRole().name(), savedUser.getActive());
+
         return mapToResponse(savedUser);
     }
 
@@ -87,6 +99,9 @@ public class UserServiceImpl implements UserService {
         user.setActive(request.getActive());
 
         User updatedUser = userRepository.save(user);
+
+        // Sync updated profile to auth_db
+        syncToAuthService(updatedUser.getUsername(), null, updatedUser.getFullname(), updatedUser.getRole().name(), updatedUser.getActive());
 
         // Publish user.updated event
         eventPublisher.publishUserUpdated(UserEventDto.builder()
@@ -103,16 +118,26 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void changePassword(Long id, ChangePasswordRequest request) {
+    public void changePassword(Long id, ChangePasswordRequest request, String currentUserRole) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(UserConstants.MSG_USER_NOT_FOUND + id));
 
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new BadRequestException(UserConstants.MSG_OLD_PASSWORD_INCORRECT);
+        // If not ADMIN, require valid currentPassword
+        if (!"ADMIN".equalsIgnoreCase(currentUserRole)) {
+            if (request.getCurrentPassword() == null || request.getCurrentPassword().isBlank()) {
+                throw new BadRequestException("Vui lòng cung cấp mật khẩu hiện tại");
+            }
+            if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+                throw new BadRequestException(UserConstants.MSG_OLD_PASSWORD_INCORRECT);
+            }
         }
 
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        String encodedNewPassword = passwordEncoder.encode(request.getNewPassword());
+        user.setPassword(encodedNewPassword);
         userRepository.save(user);
+
+        // Sync new password to auth_db immediately
+        syncPasswordToAuthService(user.getUsername(), encodedNewPassword);
     }
 
     @Override
@@ -122,12 +147,51 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException(UserConstants.MSG_CANNOT_DELETE_SELF);
         }
 
-        if (!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException(UserConstants.MSG_USER_NOT_FOUND + id);
-        }
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(UserConstants.MSG_USER_NOT_FOUND + id));
 
+        String username = user.getUsername();
         userRepository.deleteById(id);
         eventPublisher.publishUserDeleted(id);
+
+        // Sync deletion to auth_db
+        syncDeleteToAuthService(username);
+    }
+
+    private void syncToAuthService(String username, String encodedPassword, String fullname, String role, Boolean active) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("username", username);
+            payload.put("password", encodedPassword);
+            payload.put("fullname", fullname);
+            payload.put("role", role);
+            payload.put("active", active);
+            restTemplate.postForObject(authServiceUrl + "/api/auth/internal/sync-user", payload, Object.class);
+            log.info("Successfully synced user '{}' to auth-service", username);
+        } catch (Exception e) {
+            log.warn("Failed to sync user '{}' to auth-service: {}", username, e.getMessage());
+        }
+    }
+
+    private void syncPasswordToAuthService(String username, String encodedPassword) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("username", username);
+            payload.put("password", encodedPassword);
+            restTemplate.put(authServiceUrl + "/api/auth/internal/sync-password", payload);
+            log.info("Successfully synced new password for user '{}' to auth-service", username);
+        } catch (Exception e) {
+            log.warn("Failed to sync password for user '{}' to auth-service: {}", username, e.getMessage());
+        }
+    }
+
+    private void syncDeleteToAuthService(String username) {
+        try {
+            restTemplate.delete(authServiceUrl + "/api/auth/internal/sync-user/" + username);
+            log.info("Successfully synced deletion of user '{}' to auth-service", username);
+        } catch (Exception e) {
+            log.warn("Failed to sync deletion of user '{}' to auth-service: {}", username, e.getMessage());
+        }
     }
 
     @Override

@@ -88,9 +88,9 @@ public class TableServiceImpl implements TableService {
         RestaurantTable table = tableRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(TableConstants.MSG_TABLE_NOT_FOUND + id));
 
-        // Concurrency protection: prevent grabbing a table that is already occupied
-        if (status == TableStatus.OCCUPIED && table.getStatus() != TableStatus.FREE) {
-            throw new ConflictException("Bàn " + table.getNumber() + " hiện không ở trạng thái trống (trạng thái: " + table.getStatus() + ")");
+        // Idempotent check
+        if (table.getStatus() == status) {
+            return mapToResponse(table);
         }
 
         table.setStatus(status);

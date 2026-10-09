@@ -2,6 +2,7 @@ package com.restaurant.user.dto;
 
 import com.restaurant.user.constant.UserConstants;
 import com.restaurant.user.enums.Role;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -18,6 +19,7 @@ public class UserUpdateRequest {
 
     @NotBlank(message = "Fullname is required")
     @Size(max = UserConstants.MAX_FULLNAME_LENGTH, message = "Fullname cannot exceed {max} characters")
+    @JsonAlias({"fullName", "fullname"})
     private String fullname;
 
     @NotNull(message = "Role is required")

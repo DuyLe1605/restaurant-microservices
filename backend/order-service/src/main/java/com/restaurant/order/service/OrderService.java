@@ -15,4 +15,6 @@ public interface OrderService {
     OrderResponse cancelOrder(Long id);
     void deleteOrder(Long id);
     InvoiceResponse generateInvoice(Long id);
+    OrderResponse updateItemStatus(Long orderId, Long itemId, com.restaurant.order.enums.OrderDetailStatus status);
+    OrderResponse updateAllItemsStatus(Long orderId, com.restaurant.order.enums.OrderDetailStatus status);
 }

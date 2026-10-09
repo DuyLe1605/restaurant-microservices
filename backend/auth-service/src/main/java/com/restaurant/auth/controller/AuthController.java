@@ -59,4 +59,22 @@ public class AuthController {
         authService.logout(token);
         return ResponseEntity.ok(ApiResponse.ok(AuthConstants.MSG_LOGOUT_SUCCESS));
     }
+
+    @PostMapping("/internal/sync-user")
+    public ResponseEntity<ApiResponse<Void>> syncUser(@RequestBody AuthSyncDto dto) {
+        authService.syncUser(dto);
+        return ResponseEntity.ok(ApiResponse.ok("User synchronized"));
+    }
+
+    @PutMapping("/internal/sync-password")
+    public ResponseEntity<ApiResponse<Void>> syncPassword(@RequestBody AuthSyncDto dto) {
+        authService.syncPassword(dto.getUsername(), dto.getPassword());
+        return ResponseEntity.ok(ApiResponse.ok("Password synchronized"));
+    }
+
+    @DeleteMapping("/internal/sync-user/{username}")
+    public ResponseEntity<ApiResponse<Void>> syncDelete(@PathVariable String username) {
+        authService.syncDelete(username);
+        return ResponseEntity.ok(ApiResponse.ok("User deleted"));
+    }
 }

@@ -151,6 +151,70 @@ public class AuthServiceImpl implements AuthService {
         log.info("User logged out successfully");
     }
 
+    @Override
+    @Transactional
+    public void syncUser(AuthSyncDto dto) {
+        if (dto.getUsername() == null || dto.getUsername().isBlank()) return;
+
+        com.restaurant.auth.enums.Role parsedRole = com.restaurant.auth.enums.Role.USER;
+        if (dto.getRole() != null) {
+            try {
+                parsedRole = com.restaurant.auth.enums.Role.valueOf(dto.getRole().toUpperCase());
+            } catch (Exception ignored) {}
+        }
+
+        User user = userRepository.findByUsername(dto.getUsername()).orElse(null);
+        if (user == null) {
+            String encodedPassword = dto.getPassword();
+            if (encodedPassword != null && !encodedPassword.startsWith("$2a$")) {
+                encodedPassword = passwordEncoder.encode(encodedPassword);
+            }
+            user = User.builder()
+                    .username(dto.getUsername())
+                    .password(encodedPassword != null ? encodedPassword : passwordEncoder.encode("123456"))
+                    .fullname(dto.getFullname() != null ? dto.getFullname() : dto.getUsername())
+                    .role(parsedRole)
+                    .active(dto.getActive() != null ? dto.getActive() : true)
+                    .build();
+        } else {
+            if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+                String pwd = dto.getPassword();
+                if (!pwd.startsWith("$2a$")) {
+                    pwd = passwordEncoder.encode(pwd);
+                }
+                user.setPassword(pwd);
+            }
+            if (dto.getFullname() != null) user.setFullname(dto.getFullname());
+            if (dto.getRole() != null) user.setRole(parsedRole);
+            if (dto.getActive() != null) user.setActive(dto.getActive());
+        }
+        userRepository.save(user);
+        log.info("Synchronized user '{}' into auth_db", dto.getUsername());
+    }
+
+    @Override
+    @Transactional
+    public void syncPassword(String username, String newPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        String pwd = newPassword;
+        if (!pwd.startsWith("$2a$")) {
+            pwd = passwordEncoder.encode(pwd);
+        }
+        user.setPassword(pwd);
+        userRepository.save(user);
+        log.info("Synchronized password for user '{}' into auth_db", username);
+    }
+
+    @Override
+    @Transactional
+    public void syncDelete(String username) {
+        userRepository.findByUsername(username).ifPresent(user -> {
+            userRepository.delete(user);
+            log.info("Deleted user '{}' from auth_db", username);
+        });
+    }
+
     private UserDto mapToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())

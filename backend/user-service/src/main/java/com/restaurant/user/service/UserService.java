@@ -9,7 +9,7 @@ public interface UserService {
     UserResponse getUserById(Long id);
     UserResponse createUser(UserCreateRequest request);
     UserResponse updateUser(Long id, UserUpdateRequest request);
-    void changePassword(Long id, ChangePasswordRequest request);
+    void changePassword(Long id, ChangePasswordRequest request, String currentUserRole);
     void deleteUser(Long id, Long currentUserId);
     long countActiveUsers();
 }

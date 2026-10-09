@@ -443,6 +443,42 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public OrderResponse updateItemStatus(Long orderId, Long itemId, OrderDetailStatus status) {
+        SaleOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(OrderConstants.MSG_ORDER_NOT_FOUND + orderId));
+
+        SaleOrderDetail item = detailRepository.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Chi tiết món #" + itemId + " không tồn tại"));
+
+        if (!orderId.equals(item.getSaleOrderId())) {
+            throw new BadRequestException("Món #" + itemId + " không thuộc đơn hàng #" + orderId);
+        }
+
+        item.setStatus(status);
+        detailRepository.save(item);
+        log.info("Updated item #{} in order #{} to status {}", itemId, orderId, status);
+
+        return mapToResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse updateAllItemsStatus(Long orderId, OrderDetailStatus status) {
+        SaleOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(OrderConstants.MSG_ORDER_NOT_FOUND + orderId));
+
+        List<SaleOrderDetail> items = detailRepository.findBySaleOrderId(orderId);
+        for (SaleOrderDetail item : items) {
+            item.setStatus(status);
+        }
+        detailRepository.saveAll(items);
+        log.info("Updated all {} items in order #{} to status {}", items.size(), orderId, status);
+
+        return mapToResponse(order);
+    }
+
     private OrderDetailResponse mapDetailToResponse(SaleOrderDetail d) {
         return OrderDetailResponse.builder()
                 .id(d.getId())

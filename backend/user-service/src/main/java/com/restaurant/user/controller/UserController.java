@@ -61,7 +61,12 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody UserCreateRequest request) {
+    public ResponseEntity<ApiResponse<UserResponse>> createUser(
+            @Valid @RequestBody UserCreateRequest request,
+            @RequestHeader(value = UserConstants.HEADER_USER_ROLE, required = false) String currentUserRole) {
+        if (currentUserRole != null && !"ADMIN".equalsIgnoreCase(currentUserRole)) {
+            throw new com.restaurant.user.exception.ForbiddenException("Chỉ Quản trị viên (ADMIN) mới có quyền tạo người dùng.");
+        }
         UserResponse response = userService.createUser(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(response, UserConstants.MSG_USER_CREATED));
@@ -70,7 +75,11 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @PathVariable Long id,
-            @Valid @RequestBody UserUpdateRequest request) {
+            @Valid @RequestBody UserUpdateRequest request,
+            @RequestHeader(value = UserConstants.HEADER_USER_ROLE, required = false) String currentUserRole) {
+        if (currentUserRole != null && !"ADMIN".equalsIgnoreCase(currentUserRole)) {
+            throw new com.restaurant.user.exception.ForbiddenException("Chỉ Quản trị viên (ADMIN) mới có quyền cập nhật người dùng.");
+        }
         UserResponse response = userService.updateUser(id, request);
         return ResponseEntity.ok(ApiResponse.ok(response, UserConstants.MSG_USER_UPDATED));
     }
@@ -78,15 +87,20 @@ public class UserController {
     @PutMapping("/{id}/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @PathVariable Long id,
+            @RequestHeader(value = UserConstants.HEADER_USER_ROLE, required = false) String currentUserRole,
             @Valid @RequestBody ChangePasswordRequest request) {
-        userService.changePassword(id, request);
+        userService.changePassword(id, request, currentUserRole);
         return ResponseEntity.ok(ApiResponse.ok(UserConstants.MSG_PASSWORD_CHANGED));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable Long id,
-            @RequestHeader(value = UserConstants.HEADER_USER_ID, required = false) String currentUserIdHeader) {
+            @RequestHeader(value = UserConstants.HEADER_USER_ID, required = false) String currentUserIdHeader,
+            @RequestHeader(value = UserConstants.HEADER_USER_ROLE, required = false) String currentUserRole) {
+        if (currentUserRole != null && !"ADMIN".equalsIgnoreCase(currentUserRole)) {
+            throw new com.restaurant.user.exception.ForbiddenException("Chỉ Quản trị viên (ADMIN) mới có quyền xóa tài khoản.");
+        }
         Long currentUserId = currentUserIdHeader != null ? Long.parseLong(currentUserIdHeader) : -1L;
         userService.deleteUser(id, currentUserId);
         return ResponseEntity.ok(ApiResponse.ok(UserConstants.MSG_USER_DELETED));

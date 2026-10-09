@@ -96,4 +96,21 @@ public class OrderController {
         InvoiceResponse response = orderService.generateInvoice(id);
         return ResponseEntity.ok(ApiResponse.ok(response, "Invoice generated"));
     }
+
+    @PutMapping("/{orderId}/items/{itemId}/status")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateItemStatus(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody ItemStatusUpdateRequest request) {
+        OrderResponse response = orderService.updateItemStatus(orderId, itemId, request.getStatus());
+        return ResponseEntity.ok(ApiResponse.ok(response, "Cập nhật trạng thái món thành công"));
+    }
+
+    @PutMapping("/{orderId}/items/status")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateAllItemsStatus(
+            @PathVariable Long orderId,
+            @Valid @RequestBody ItemStatusUpdateRequest request) {
+        OrderResponse response = orderService.updateAllItemsStatus(orderId, request.getStatus());
+        return ResponseEntity.ok(ApiResponse.ok(response, "Cập nhật trạng thái toàn bộ món thành công"));
+    }
 }
