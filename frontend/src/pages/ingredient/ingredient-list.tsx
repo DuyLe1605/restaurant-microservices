@@ -18,8 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Search, Edit2, Trash2, AlertTriangle, FolderPlus, Layers, Check } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, AlertTriangle, FolderPlus, Layers, Check, Download, Printer } from 'lucide-react';
 import { Ingredient, IngredientCategory } from '@/types/ingredient';
+import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
 import { toast } from 'sonner';
 
 export function IngredientListPage() {
@@ -124,6 +125,112 @@ export function IngredientListPage() {
     );
   };
 
+  const handleExportExcel = () => {
+    if (!data?.content || data.content.length === 0) return;
+    let totalValuation = 0;
+    const excelData = data.content.map((item, idx) => {
+      const val = (item.currentStock || 0) * (item.purchasePrice || 0);
+      totalValuation += val;
+      const isOutOfStock = item.currentStock <= 0;
+      const isLow = item.currentStock > 0 && item.currentStock <= item.minStock;
+      const statusText = isOutOfStock ? 'HẾT HÀNG' : isLow ? 'Cần nhập thêm' : 'Đủ tồn an toàn';
+
+      return {
+        stt: idx + 1,
+        code: item.code,
+        name: item.name,
+        category: item.category || 'Mặc định',
+        unit: item.unit,
+        price: formatVND(item.purchasePrice || 0),
+        stock: `${item.currentStock} ${item.unit}`,
+        minStock: `${item.minStock} ${item.unit}`,
+        valuation: formatVND(val),
+        status: statusText,
+      };
+    });
+
+    exportToExcel(
+      `Bien_Ban_Kiem_Ke_Kho_${new Date().toISOString().split('T')[0]}`,
+      'BIÊN BẢN KIỂM KÊ VÀ ĐỊNH GIÁ TỒN KHO NGUYÊN LIỆU',
+      [
+        { header: 'STT', key: 'stt' },
+        { header: 'Mã VT', key: 'code' },
+        { header: 'Tên Nguyên Liệu', key: 'name' },
+        { header: 'Phân Loại', key: 'category' },
+        { header: 'ĐVT', key: 'unit' },
+        { header: 'Giá Nhập (VNĐ)', key: 'price' },
+        { header: 'Tồn Thực Tế', key: 'stock' },
+        { header: 'Tồn An Toàn', key: 'minStock' },
+        { header: 'Giá Trị Tồn Kho', key: 'valuation' },
+        { header: 'Cảnh Báo', key: 'status' },
+      ],
+      excelData,
+      [
+        { label: 'Tổng số mặt hàng kiểm kê', value: `${data.content.length} mặt hàng` },
+        { label: 'TỔNG GIÁ TRỊ TỒN KHO ƯỚC TÍNH', value: formatVND(totalValuation) },
+      ],
+      {
+        'Bộ lọc danh mục': category || 'Tất cả danh mục',
+        'Đơn vị kiểm kê': 'Tổ kiểm kê kho & Bếp trưởng',
+      }
+    );
+  };
+
+  const handlePrintAuditReport = () => {
+    if (!data?.content || data.content.length === 0) return;
+    let totalValuation = 0;
+    let outOfStockCount = 0;
+    let lowStockCount = 0;
+
+    const rows = data.content.map((item, idx) => {
+      const val = (item.currentStock || 0) * (item.purchasePrice || 0);
+      totalValuation += val;
+      if (item.currentStock <= 0) outOfStockCount++;
+      else if (item.currentStock <= item.minStock) lowStockCount++;
+
+      return {
+        stt: idx + 1,
+        code: item.code,
+        name: item.name,
+        category: item.category || 'Mặc định',
+        unit: item.unit,
+        price: formatVND(item.purchasePrice || 0),
+        stock: `${item.currentStock} ${item.unit}`,
+        valuation: formatVND(val),
+        status: item.currentStock <= 0 ? 'Hết hàng' : item.currentStock <= item.minStock ? 'Cần nhập' : 'Ổn định',
+      };
+    });
+
+    printProfessionalReport({
+      title: 'BIÊN BẢN KIỂM KÊ VÀ ĐỊNH GIÁ TỒN KHO NGUYÊN LIỆU',
+      subtitle: `Kỳ kiểm kê: Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()} - Ngày: ${new Date().toLocaleDateString('vi-VN')}`,
+      reportPeriod: `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
+      preparedBy: 'Tổ Kiểm Kê & Thủ Kho',
+      kpis: [
+        { label: 'Tổng mã nguyên liệu', value: String(data.totalElements || data.content.length), color: '#0284c7' },
+        { label: 'Tổng giá trị tồn kho', value: formatVND(totalValuation), color: '#16a34a' },
+        { label: 'Nguyên liệu hết hàng', value: String(outOfStockCount), color: '#e11d48' },
+        { label: 'Cần bổ sung gấp', value: String(lowStockCount), color: '#d97706' },
+      ],
+      columns: [
+        { header: 'STT', key: 'stt', align: 'center' },
+        { header: 'Mã VT', key: 'code', align: 'left' },
+        { header: 'Tên nguyên liệu', key: 'name', align: 'left' },
+        { header: 'Phân loại', key: 'category', align: 'left' },
+        { header: 'ĐVT', key: 'unit', align: 'center' },
+        { header: 'Giá nhập', key: 'price', align: 'right' },
+        { header: 'Tồn thực tế', key: 'stock', align: 'right' },
+        { header: 'Giá trị tồn kho', key: 'valuation', align: 'right' },
+        { header: 'Tình trạng', key: 'status', align: 'center' },
+      ],
+      data: rows,
+      summary: [
+        { label: 'TỔNG GIÁ TRỊ TỒN KHO', value: formatVND(totalValuation) },
+      ],
+      signatures: ['Người Kiểm Kê', 'Thủ Kho Phụ Trách', 'Kế Toán Trưởng', 'Giám Đốc / Bếp Trưởng'],
+    });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -131,6 +238,16 @@ export function IngredientListPage() {
         description="Danh mục vật tư thực phẩm, đơn vị tính, ngưỡng tồn kho an toàn và quản lý danh mục phân loại chuẩn"
       >
         <div className="flex items-center gap-2">
+          {data && data.content.length > 0 && (
+            <>
+              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
+                <Download className="h-4 w-4 text-emerald-600" /> Xuất Excel
+              </Button>
+              <Button variant="outline" onClick={handlePrintAuditReport} className="gap-2">
+                <Printer className="h-4 w-4" /> In biên bản kiểm kê
+              </Button>
+            </>
+          )}
           <Button variant="outline" onClick={() => setCategoryModalOpen(true)} className="gap-2">
             <Layers className="h-4 w-4" /> Quản lý danh mục
           </Button>

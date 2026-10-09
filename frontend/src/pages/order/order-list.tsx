@@ -6,24 +6,30 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { formatVND } from '@/lib/format-currency';
-import { formatDateTime } from '@/lib/format-date';
+import { formatDate, formatDateTime } from '@/lib/format-date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split } from 'lucide-react';
+import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split, Download, Calendar, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrderStatus, SaleOrder } from '@/types/order';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuthStore } from '@/stores/auth-store';
+import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
 
 export function OrderListPage() {
+  const { user } = useAuthStore();
+  const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('');
+  const [startDate, setStartDate] = React.useState('');
+  const [endDate, setEndDate] = React.useState('');
   const [page, setPage] = React.useState(0);
   const navigate = useNavigate();
 
-  const { data, isLoading } = useOrders({ status: (statusFilter as OrderStatus) || undefined, page, size: 20 });
+  const { data, isLoading } = useOrders({ status: (statusFilter as OrderStatus) || undefined, page, size: 50 });
   const completeMutation = useCompleteOrder();
   const payMutation = usePayOrder();
   const cancelMutation = useCancelOrder();
@@ -32,6 +38,45 @@ export function OrderListPage() {
   const [selectedOrder, setSelectedOrder] = React.useState<SaleOrder | null>(null);
   const [splitModalOrder, setSplitModalOrder] = React.useState<SaleOrder | null>(null);
   const [splitQuantities, setSplitQuantities] = React.useState<Record<number, number>>({});
+
+  // Preset Handlers
+  const setFilterToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setStartDate(today);
+    setEndDate(today);
+  };
+
+  const setFilter7Days = () => {
+    const today = new Date();
+    const past = new Date(today);
+    past.setDate(today.getDate() - 6);
+    setStartDate(past.toISOString().split('T')[0]);
+    setEndDate(today.toISOString().split('T')[0]);
+  };
+
+  const setFilterMonth = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    setStartDate(firstDay.toISOString().split('T')[0]);
+    setEndDate(today.toISOString().split('T')[0]);
+  };
+
+  const setFilterAll = () => {
+    setStartDate('');
+    setEndDate('');
+    setStatusFilter('');
+    setSearch('');
+  };
+
+  const isSingleDay = Boolean(startDate && endDate && startDate === endDate);
+  const datePeriodLabel = React.useMemo(() => {
+    if (startDate && endDate) {
+      return startDate === endDate ? `Ngày ${formatDate(startDate)}` : `Từ ngày ${formatDate(startDate)} đến ngày ${formatDate(endDate)}`;
+    }
+    if (startDate) return `Từ ngày ${formatDate(startDate)}`;
+    if (endDate) return `Đến ngày ${formatDate(endDate)}`;
+    return 'Toàn bộ thời gian';
+  }, [startDate, endDate]);
 
   const handleOpenSplit = (order: SaleOrder) => {
     const init: Record<number, number> = {};
@@ -59,7 +104,7 @@ export function OrderListPage() {
 
   const rawOrders: SaleOrder[] = data?.content || (Array.isArray(data) ? data : []);
 
-  // Filter client-side by search query (order ID, table number, customer name)
+  // Filter client-side by search query and dates
   const filteredOrders = React.useMemo(() => {
     return rawOrders.filter((order) => {
       const matchSearch =
@@ -70,9 +115,107 @@ export function OrderListPage() {
 
       const matchStatus = !statusFilter || order.status === statusFilter;
 
-      return matchSearch && matchStatus;
+      const orderDate = (order.createdAt || order.orderTime || '').split('T')[0];
+      const matchStart = !startDate || (orderDate && orderDate >= startDate);
+      const matchEnd = !endDate || (orderDate && orderDate <= endDate);
+
+      return matchSearch && matchStatus && matchStart && matchEnd;
     });
-  }, [rawOrders, search, statusFilter]);
+  }, [rawOrders, search, statusFilter, startDate, endDate]);
+
+  const handleExportExcel = () => {
+    if (filteredOrders.length === 0) return;
+    const totalRev = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const fileSuffix = isSingleDay
+      ? `Ngay_${startDate}`
+      : startDate && endDate
+      ? `${startDate}_den_${endDate}`
+      : 'Toan_Bo';
+    const sheetTitle = isSingleDay
+      ? `BÁO CÁO DANH SÁCH ĐƠN HÀNG NGÀY ${formatDate(startDate)}`
+      : startDate && endDate
+      ? `BÁO CÁO DANH SÁCH ĐƠN HÀNG (TỪ ${formatDate(startDate)} ĐẾN ${formatDate(endDate)})`
+      : 'BÁO CÁO DANH SÁCH ĐƠN HÀNG VÀ DOANH SỐ';
+
+    const excelData = filteredOrders.map((o, idx) => ({
+      stt: idx + 1,
+      id: `DH-#${o.id}`,
+      table: o.tableNumber || 'Mang về',
+      customer: o.customerName || 'Khách vãng lai',
+      time: formatDateTime(o.createdAt || o.orderTime),
+      status: o.status,
+      amount: formatVND(o.totalAmount || 0),
+    }));
+
+    exportToExcel(
+      `Bao_Cao_Don_Hang_${fileSuffix}`,
+      sheetTitle,
+      [
+        { header: 'STT', key: 'stt' },
+        { header: 'Mã Đơn', key: 'id' },
+        { header: 'Bàn', key: 'table' },
+        { header: 'Khách Hàng', key: 'customer' },
+        { header: 'Thời Gian', key: 'time' },
+        { header: 'Trạng Thái', key: 'status' },
+        { header: 'Tổng Tiền (VNĐ)', key: 'amount' },
+      ],
+      excelData,
+      [
+        { label: 'Tổng số đơn hàng', value: `${filteredOrders.length} đơn` },
+        { label: 'TỔNG CỘNG DOANH SỐ BÁN', value: formatVND(totalRev) },
+      ],
+      {
+        'Kỳ thống kê': datePeriodLabel,
+        'Trạng thái lọc': statusFilter || 'Tất cả trạng thái',
+        'Bộ phận lập': 'Hệ thống Quản lý Nhà hàng POS',
+      }
+    );
+  };
+
+  const handlePrintOrderReport = () => {
+    if (filteredOrders.length === 0) return;
+    const totalRev = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const paidCount = filteredOrders.filter((o) => o.status === 'PAID').length;
+    const openCount = filteredOrders.filter((o) => o.status === 'OPEN' || o.status === 'SERVED').length;
+    const printTitle = isSingleDay
+      ? `BÁO CÁO DOANH SỐ ĐƠN HÀNG NGÀY ${formatDate(startDate)}`
+      : 'BÁO CÁO TỔNG HỢP DOANH SỐ ĐƠN HÀNG';
+
+    printProfessionalReport({
+      title: printTitle,
+      subtitle: `Kỳ báo cáo: ${datePeriodLabel} - Tổng số: ${filteredOrders.length} đơn hàng`,
+      reportPeriod: datePeriodLabel,
+      preparedBy: 'Thu ngân ca trực',
+      kpis: [
+        { label: 'Tổng doanh thu', value: formatVND(totalRev), color: '#16a34a' },
+        { label: 'Tổng số đơn', value: `${filteredOrders.length} đơn`, color: '#0284c7' },
+        { label: 'Đã thanh toán', value: `${paidCount} đơn`, color: '#16a34a' },
+        { label: 'Đang phục vụ', value: `${openCount} đơn`, color: '#d97706' },
+      ],
+      columns: [
+        { header: 'STT', key: 'stt', align: 'center' },
+        { header: 'Mã Đơn', key: 'id', align: 'left' },
+        { header: 'Bàn ăn', key: 'table', align: 'center' },
+        { header: 'Khách hàng', key: 'customer', align: 'left' },
+        { header: 'Thời gian đặt', key: 'time', align: 'left' },
+        { header: 'Trạng thái', key: 'status', align: 'center' },
+        { header: 'Tổng tiền', key: 'amount', align: 'right' },
+      ],
+      data: filteredOrders.map((o, idx) => ({
+        stt: idx + 1,
+        id: `DH-#${o.id}`,
+        table: o.tableNumber || 'Mang về',
+        customer: o.customerName || 'Khách vãng lai',
+        time: formatDateTime(o.createdAt || o.orderTime),
+        status: o.status,
+        amount: formatVND(o.totalAmount || 0),
+      })),
+      summary: [
+        { label: 'TỔNG CỘNG DOANH SỐ', value: formatVND(totalRev) },
+      ],
+      signatures: ['Thu Ngân Ca Trực', 'Quản Lý Nhà Hàng', 'Giám Đốc Điều Hành'],
+    });
+  };
 
   if (isLoading) {
     return <LoadingSpinner text="Đang tải danh sách đơn hàng..." />;
@@ -81,32 +224,87 @@ export function OrderListPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Quản lý Đơn hàng & POS" description="Theo dõi quy trình phục vụ, đơn tại bàn, thanh toán và in hoá đơn.">
-        
+        <div className="flex items-center gap-2">
+          {filteredOrders.length > 0 && (
+            <>
+              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
+                <Download className="h-4 w-4 text-emerald-600" />
+                Xuất Excel
+              </Button>
+              <Button variant="outline" onClick={handlePrintOrderReport} className="gap-2">
+                <Printer className="h-4 w-4" />
+                In báo cáo đơn
+              </Button>
+            </>
+          )}
           <Button onClick={() => navigate('/orders/create')} className="gap-2 shadow-md">
             <Plus className="h-4 w-4" />
             Tạo đơn mới (POS)
           </Button>
-        
+        </div>
       </PageHeader>
 
-      {/* Search & Select Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Tìm theo mã đơn, bàn, tên khách..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+      {/* Date & Filter Toolbar */}
+      <div className="bg-card border rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b">
+          <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <Calendar className="h-4 w-4 text-primary" />
+            <span>Khoảng thời gian:</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
+              {datePeriodLabel}
+            </span>
+          </div>
+
+          {/* Quick Preset Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              variant={isSingleDay && startDate === new Date().toISOString().split('T')[0] ? 'default' : 'outline'}
+              size="sm"
+              onClick={setFilterToday}
+              className="text-xs h-7"
+            >
+              Hôm nay
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={setFilter7Days}
+              className="text-xs h-7"
+            >
+              7 ngày qua
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={setFilterMonth}
+              className="text-xs h-7"
+            >
+              Tháng này
+            </Button>
+            <Button
+              variant={!startDate && !endDate ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={setFilterAll}
+              className="text-xs h-7 gap-1"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Tất cả
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="w-56">
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Từ ngày:</label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Đến ngày:</label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Trạng thái đơn:</label>
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">-- Tất cả trạng thái --</option>
               <option value="OPEN">Đang mở (OPEN)</option>
               <option value="SERVED">Đã phục vụ (SERVED)</option>
@@ -114,11 +312,18 @@ export function OrderListPage() {
               <option value="CANCEL">Đã hủy (CANCEL)</option>
             </Select>
           </div>
-          {search && (
-            <Button variant="ghost" size="sm" onClick={() => setSearch('')}>
-              Xóa tìm
-            </Button>
-          )}
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Tìm kiếm đơn:</label>
+            <div className="relative">
+              <Input
+                placeholder="Mã đơn, bàn, tên khách..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -195,7 +400,7 @@ export function OrderListPage() {
                         </Button>
                       )}
 
-                      {order.status !== 'PAID' && order.status !== 'CANCEL' && (
+                      {order.status !== 'PAID' && order.status !== 'CANCEL' && canCancel && (
                         <Button
                           size="sm"
                           variant="ghost"
