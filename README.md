@@ -123,6 +123,7 @@ D:\restaurant-microservices\
 | 10 | Integration + Polish | 7 | 7 |
 | 11 | Documentation & Deliverables | 4 | 3 |
 | 12 | Hardening: Idempotency, Concurrency, Security & Defense Q&A | 5 | 2 |
+| 13 | RBAC Matrix, Security Sync, Business Export & Date Range Filtering | 8 | 12 |
 
 ---
 
@@ -130,17 +131,22 @@ D:\restaurant-microservices\
 
 - **File Word Báo Cáo Giải Đáp 10 Câu Hỏi Bảo Vệ**: `GIAI_DAP_BAO_VE_MON_HOC_SOA_MICROSERVICES.docx` (Chi tiết kiến trúc, bảng biểu, trích dẫn code và toàn bộ các giải pháp khắc phục lỗi phân tán).
 - **Công cụ sinh tài liệu tự động**: `backend-server/generate_defense_doc.js`.
+- **Ma trận phân quyền vai trò (RBAC Matrix)**: [`RBAC-MATRIX.md`](RBAC-MATRIX.md).
+- **Bảng phân công chi tiết 5 thành viên**: [`TASK-ASSIGNMENT.md`](TASK-ASSIGNMENT.md).
 
 ---
 
 ## Quick Start (sau khi hoàn thành)
 
 ```bash
-# Backend
+# 1. Khởi chạy toàn bộ hệ thống bằng 1 click:
+backend\start_all_services.bat
+
+# Hoặc bằng Docker & Maven:
 cd backend
 docker-compose up -d
 
-# Frontend
+# 2. Frontend:
 cd frontend
 npm install
 npm run dev
@@ -150,6 +156,9 @@ npm run dev
 
 ## Tài Liệu Chi Tiết
 
+- **Kiến trúc Tổng thể**: Xem [DOCUMENTATION.md](DOCUMENTATION.md)
+- **Phân công nhiệm vụ**: Xem [TASK-ASSIGNMENT.md](TASK-ASSIGNMENT.md)
+- **Ma trận phân quyền (RBAC)**: Xem [RBAC-MATRIX.md](RBAC-MATRIX.md)
 - **Backend**: Xem [backend/IMPLEMENTATION.md](backend/IMPLEMENTATION.md)
 - **Backend Tracking**: Xem [backend/TRACKING.md](backend/TRACKING.md)
 - **Frontend**: Xem [frontend/IMPLEMENTATION.md](frontend/IMPLEMENTATION.md)

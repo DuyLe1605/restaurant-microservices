@@ -58,6 +58,14 @@
 - [`init-all-databases.sql`](backend/init-all-databases.sql): Bổ sung cột `version` cho bảng `tables` để hỗ trợ cơ chế khóa lạc quan (Optimistic Locking).
 - Tài liệu toàn diện: [`README.md`](README.md), [`DOCUMENTATION.md`](DOCUMENTATION.md), [`backend/DOCUMENTATION.md`](backend/DOCUMENTATION.md), [`backend/IMPLEMENTATION.md`](backend/IMPLEMENTATION.md), [`backend/TRACKING.md`](backend/TRACKING.md).
 
+#### 🚀 Phase 13: Service Synchronization, DevOps & Order Item Status Fix
+- [`AuthenticationFilter.java`](backend/api-gateway/src/main/java/com/restaurant/gateway/filter/AuthenticationFilter.java): Mở rộng bộ lọc Gateway cho phép đồng bộ thông tin xác thực `/api/auth/sync-credentials` nội bộ an toàn.
+- [`AuthSyncDto.java`](backend/auth-service/src/main/java/com/restaurant/auth/dto/AuthSyncDto.java), [`AuthController.java`](backend/auth-service/src/main/java/com/restaurant/auth/controller/AuthController.java), [`AuthServiceImpl.java`](backend/auth-service/src/main/java/com/restaurant/auth/service/impl/AuthServiceImpl.java): Xây dựng API và nghiệp vụ đồng bộ thông tin xác thực trực tiếp giữa `user-service` và `auth-service` khi tạo tài khoản nhân viên hoặc đổi mật khẩu.
+- [`TableServiceImpl.java`](backend/table-service/src/main/java/com/restaurant/table/service/impl/TableServiceImpl.java): Chuẩn hóa trạng thái bàn (`FREE`, `OCCUPIED`, `RESERVED`), khắc phục lỗi xung đột enum trạng thái bàn khi tạo và hủy đơn.
+- [`ItemStatusUpdateRequest.java`](backend/order-service/src/main/java/com/restaurant/order/dto/ItemStatusUpdateRequest.java), [`OrderDetailStatus.java`](backend/order-service/src/main/java/com/restaurant/order/enums/OrderDetailStatus.java), [`OrderServiceImpl.java`](backend/order-service/src/main/java/com/restaurant/order/service/impl/OrderServiceImpl.java): Bổ sung cập nhật trạng thái món ăn trong đơn hàng phục vụ bếp KDS (`COOKING`, `COOKED`, `SERVED`), mở rộng độ dài trường `status` trong database lên `VARCHAR(30)`.
+- Scripts DevOps: [`backend/start_all_services.bat`](backend/start_all_services.bat) và [`backend/stop_all_services.bat`](backend/stop_all_services.bat) tự động hóa việc khởi chạy và tắt toàn bộ 9 microservices trong một cú click chuột.
+
+
 ---
 
 ### 2. Phạm Chấn Hưng — Backend Developer (20%)
@@ -88,6 +96,12 @@
 - [`UserController.java`](backend/user-service/src/main/java/com/restaurant/user/controller/UserController.java) & [`UserServiceImpl.java`](backend/user-service/src/main/java/com/restaurant/user/service/impl/UserServiceImpl.java): Thêm endpoint `GET /api/users/me`, kiểm tra cờ `active` và chống lỗ hổng leo thang đặc quyền IDOR.
 - [`ReportStockSnapshotRepository.java`](backend/report-service/src/main/java/com/restaurant/report/repository/ReportStockSnapshotRepository.java) & [`ReportEventConsumer.java`](backend/report-service/src/main/java/com/restaurant/report/messaging/ReportEventConsumer.java): Cài đặt cơ chế Idempotent upsert để ghi nhận snapshot tồn kho mà không sợ bị trùng lặp dữ liệu khi nhận lại message.
 
+#### 🚀 Phase 13: User Password Management & Data Model Aliasing
+- [`ChangePasswordRequest.java`](backend/user-service/src/main/java/com/restaurant/user/dto/ChangePasswordRequest.java): Hoàn thiện DTO đổi mật khẩu với xác thực độ dài và tính hợp lệ của mật khẩu mới.
+- [`UserCreateRequest.java`](backend/user-service/src/main/java/com/restaurant/user/dto/UserCreateRequest.java), [`UserUpdateRequest.java`](backend/user-service/src/main/java/com/restaurant/user/dto/UserUpdateRequest.java): Tích hợp `@JsonAlias({"fullName", "fullname"})` tương thích với mọi biến thể payload từ client.
+- [`UserServiceImpl.java`](backend/user-service/src/main/java/com/restaurant/user/service/impl/UserServiceImpl.java), [`UserController.java`](backend/user-service/src/main/java/com/restaurant/user/controller/UserController.java): Sửa triệt để lỗi `PUT /api/users/{id}/change-password` 400 Bad Request, mã hóa mật khẩu mới bằng BCrypt và đồng bộ sang `auth-service`.
+
+
 ---
 
 ### 3. Nguyễn Mạnh Đức — Frontend Developer (20%)
@@ -116,6 +130,13 @@
 - [`GlobalExceptionHandler.java`](backend/table-service/src/main/java/com/restaurant/table/exception/GlobalExceptionHandler.java) & [`TableServiceImpl.java`](backend/table-service/src/main/java/com/restaurant/table/service/impl/TableServiceImpl.java): Bắt ngoại lệ `ObjectOptimisticLockingFailureException` và chuyển đổi thành mã lỗi HTTP `409 CONFLICT` thân thiện.
 - Tài liệu Frontend: [`frontend/DOCUMENTATION.md`](frontend/DOCUMENTATION.md), [`frontend/IMPLEMENTATION.md`](frontend/IMPLEMENTATION.md), [`frontend/TRACKING.md`](frontend/TRACKING.md).
 
+#### 🚀 Phase 13: RBAC Matrix Implementation & User Management Polish
+- [`RBAC-MATRIX.md`](RBAC-MATRIX.md): Biên soạn ma trận phân quyền chi tiết cho toàn bộ 3 vai trò hệ thống (`ADMIN`, `MANAGER`, `USER`) ứng với từng màn hình, API và thao tác.
+- [`App.tsx`](frontend/src/App.tsx), [`app-sidebar.tsx`](frontend/src/components/layout/app-sidebar.tsx), [`protected-route.tsx`](frontend/src/components/layout/protected-route.tsx): Triển khai bảo vệ route đa tầng (Role-based Route Guard), ẩn/hiện mục menu Sidebar tự động dựa theo quyền hạn thực tế của user đang đăng nhập.
+- [`user-list.tsx`](frontend/src/pages/user/user-list.tsx): Hoàn thiện form tạo tài khoản nhân viên kèm mật khẩu ban đầu và modal đổi mật khẩu nhân viên trực tiếp từ giao diện Admin.
+- [`table-list.tsx`](frontend/src/pages/table/table-list.tsx), [`use-tables.ts`](frontend/src/hooks/use-tables.ts): Phân quyền thao tác quản lý bàn ăn, chuyển bàn và mở bàn theo đúng vai trò.
+
+
 ---
 
 ### 4. Trần Đức Mạnh — Backend Developer (20%)
@@ -141,6 +162,11 @@
 #### 🛡️ Phase 12 Hardening
 - [`OrderCompletedConsumer.java`](backend/inventory-service/src/main/java/com/restaurant/inventory/messaging/OrderCompletedConsumer.java): Thêm kiểm tra Idempotency bằng `existsByOrderTag` dựa trên mã đơn hàng, ngăn ngừa trừ kho lặp lại khi message RabbitMQ bị gửi lại (at-least-once delivery).
 - [`application.yml`](backend/menu-service/src/main/resources/application.yml) & [`application.yml`](backend/inventory-service/src/main/resources/application.yml): Cấu hình Feign timeouts bảo vệ liên lạc đồng bộ giữa Menu và Inventory.
+
+#### 🚀 Phase 13: Inventory Export & Ingredient Stock Management
+- [`ingredient-list.tsx`](frontend/src/pages/ingredient/ingredient-list.tsx): Bổ sung tính năng xuất danh sách nguyên liệu, lọc nhóm và in báo cáo định lượng kho nguyên liệu.
+- [`issue-list.tsx`](frontend/src/pages/inventory/issue-list.tsx): Hoàn thiện hiển thị danh sách phiếu xuất kho, liên kết nguyên liệu, lọc phiếu xuất theo đợt bán hàng và xuất hủy hao hụt.
+
 
 ---
 
@@ -178,6 +204,22 @@
 - [`generate_defense_doc.js`](backend-server/generate_defense_doc.js): Script tự động tạo tài liệu Word chuẩn format.
 - [`GIAI_DAP_BAO_VE_MON_HOC_SOA_MICROSERVICES.docx`](GIAI_DAP_BAO_VE_MON_HOC_SOA_MICROSERVICES.docx): Tài liệu Word chuyên sâu giải đáp 10 câu hỏi cốt lõi khi bảo vệ đồ án SOA (Sự khác biệt Monolith vs Microservices, Data Consistency, Event-driven RabbitMQ, OpenFeign vs REST, Circuit Breaker & Timeout, Gateway Authentication, Idempotency và Distributed Tracing).
 
+#### 🚀 Phase 13: Business Export Utilities & Dynamic Date Range Filtering
+- [`export-utils.ts`](frontend/src/lib/export-utils.ts): Xây dựng bộ tiện ích xuất báo cáo chuẩn doanh nghiệp:
+  - Xuất file Excel (CSV) với tiền tố UTF-8 BOM (`\uFEFF`), hỗ trợ hiển thị tiếng Việt có dấu chuẩn đẹp trên Microsoft Excel Windows không bị lỗi font chữ.
+  - Template in ấn A4 / Xuất PDF chuyên nghiệp: tích hợp thông tin nhà hàng, Thẻ số liệu KPI, Bảng dữ liệu viền nét cao, Dòng tổng cộng tài chính và Phần ký tên 3 bên (Người Lập Biểu, Kế Toán, Giám Đốc/Chủ Quán).
+- **Thanh công cụ lọc theo ngày cụ thể & khoảng ngày**:
+  - Hỗ trợ chọn xuất theo 1 ngày duy nhất (`startDate === endDate`) hoặc khoảng ngày tuỳ ý (`startDate` đến `endDate`).
+  - Hàng nút Preset chọn nhanh: `Hôm nay`, `Hôm qua`, `7 ngày qua`, `Tháng này`, `30 ngày qua`, `Tất cả`.
+  - Tự động thay đổi tiêu đề báo cáo, subtitle, kỳ thống kê và tên file xuất theo ngày đơn lẻ (`Bao_Cao_..._Ngay_YYYY-MM-DD.csv`) hoặc khoảng ngày (`Bao_Cao_..._YYYY-MM-DD_den_YYYY-MM-DD.csv`).
+  - Tích hợp đồng bộ trên:
+    - [`receipt-list.tsx`](frontend/src/pages/inventory/receipt-list.tsx): Sổ nhập kho nguyên liệu & In phiếu nhập.
+    - [`issue-list.tsx`](frontend/src/pages/inventory/issue-list.tsx): Sổ xuất kho nguyên liệu & In sổ xuất kho.
+    - [`revenue-report.tsx`](frontend/src/pages/report/revenue-report.tsx): Báo cáo doanh thu & lợi nhuận tài chính theo ngày/kỳ.
+    - [`order-list.tsx`](frontend/src/pages/order/order-list.tsx): Danh sách đơn hàng POS & Báo cáo doanh số đơn theo ngày.
+    - [`expense-list.tsx`](frontend/src/pages/expense/expense-list.tsx): Sổ chi phí vận hành & In sổ chi phí theo ngày.
+    - [`stock-report.tsx`](frontend/src/pages/report/stock-report.tsx): Báo cáo phân tầng tồn kho nguyên liệu.
+
 ---
 
 ## 📅 Timeline Phát Triển
@@ -196,6 +238,7 @@
 | Phase 10 | 01-02/10 | User Management, Dashboard, Utilities | Đức, Sáng |
 | Phase 11 | 02-04/10 | Documentation + Integration | Duy, Đức, Mạnh |
 | Phase 12 | 05-06/10 | Security Hardening, Idempotency, Concurrency & Defense Q&A Doc | Duy, Hưng, Mạnh, Đức, Sáng |
+| Phase 13 | 06-09/10 | RBAC Matrix, Security Sync, Business Export & Date Range Filtering | Duy, Hưng, Đức, Mạnh, Sáng |
 
 ---
 

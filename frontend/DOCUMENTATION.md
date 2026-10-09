@@ -104,6 +104,29 @@ D:\restaurant-microservices\frontend\src\
 - **Trang 404 Not Found**: Định tuyến các liên kết sai hoặc trang không tồn tại về trang 404 có các nút điều hướng nhanh.
 - **React Router Future Flags**: Bật sẵn `v7_startTransition` và `v7_relativeSplatPath`, làm sạch hoàn toàn warning trong console.
 
+### 2.7. Hệ Thống Xuất Báo Cáo & In Ấn Đa Năng Chuẩn Doanh Nghiệp (`export-utils.ts`)
+- **Xuất file Excel (CSV UTF-8 BOM)**:
+  - Khắc phục triệt để lỗi hiển thị tiếng Việt trên Microsoft Excel Windows bằng cách chèn Byte Order Mark (`\uFEFF`).
+  - Tự động bổ sung Metadata phần đầu (Kỳ thống kê, Thời gian lập, Bộ phận) và Dòng tổng hợp (KPI Tổng doanh thu, Chi phí, Số lượng đơn).
+- **Mẫu in ấn & Xuất PDF chuyên nghiệp**:
+  - Tự động định dạng trang in A4 chuẩn tài chính doanh nghiệp: Header nhà hàng, Thẻ KPI tóm tắt, Bảng số liệu viền nét cao, Dòng tổng cộng và Phần ký tên 3 bên (Người Lập Biểu, Kế Toán, Giám Đốc/Chủ Quán).
+
+### 2.8. Bộ Lọc Thời Gian Nâng Cao (Khoảng ngày & Ngày cụ thể) Với Nút Chọn Nhanh (Presets)
+- **Lọc theo ngày cụ thể**: Cho phép người quản lý kiểm tra và xuất báo cáo cho riêng 1 ngày phát sinh giao dịch (`startDate === endDate`). Tên file và tiêu đề tự động đổi thành `Bao_Cao_..._Ngay_YYYY-MM-DD.csv`.
+- **Lọc theo khoảng ngày**: Linh hoạt chọn từ ngày bắt đầu đến ngày kết thúc.
+- **Hàng nút Preset chọn nhanh**: `Hôm nay`, `Hôm qua`, `7 ngày qua`, `Tháng này`, `30 ngày qua`, `Tất cả` giúp thao tác tức thì chỉ với 1 click.
+- **Phủ sóng đồng bộ trên 6 phân hệ cốt lõi**:
+  - Nhập kho (`/inventory/receipts`)
+  - Xuất kho (`/inventory/issues`)
+  - Doanh thu & Lợi nhuận (`/reports/revenue`)
+  - Đơn hàng & POS (`/orders`)
+  - Chi phí vận hành (`/expenses`)
+  - Tồn kho nguyên liệu (`/reports/stock`)
+
+### 2.9. Kiểm Soát Quyền Truy Cập & Phân Quyền Vai Trò (RBAC Integration)
+- **Bảo vệ Route đa tầng**: Kết hợp `ProtectedRoute` và ma trận phân quyền `RBAC-MATRIX.md`, chặn truy cập trái phép trực tiếp từ URL.
+- **Sidebar tự động thích ứng**: Nhân viên (`USER`) chỉ thấy các màn hình phục vụ trực tiếp (Bán hàng, Sơ đồ bàn, Bếp KDS), tự động ẩn các mục nhạy cảm (Doanh thu, Quản trị người dùng, Định mức giá vốn).
+
 ---
 
 ## 3. Hướng Dẫn Khởi Chạy Frontend
