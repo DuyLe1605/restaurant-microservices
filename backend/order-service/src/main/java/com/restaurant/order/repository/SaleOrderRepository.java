@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,4 +24,6 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
                                  Pageable pageable);
 
     Optional<SaleOrder> findFirstByTableIdAndStatus(Long tableId, OrderStatus status);
+
+    List<SaleOrder> findByOrderTimeBetweenAndStatus(LocalDateTime from, LocalDateTime to, OrderStatus status);
 }

@@ -1,86 +1,73 @@
-import * as React from 'react';
-import { WorkShift, OpenShiftRequest, CloseShiftRequest } from '@/types/shift';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { shiftApi } from '@/api/shift.api';
 import { toast } from 'sonner';
 
-const CURRENT_SHIFT_KEY = 'gourmet_haven_active_shift';
-const SHIFT_HISTORY_KEY = 'gourmet_haven_shift_history';
+const QUERY_KEY = ['shifts'];
 
+export function useCurrentShift() {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'current'],
+    queryFn: shiftApi.getCurrent,
+    refetchInterval: 30000, // refresh every 30s so cash totals stay fresh
+  });
+}
+
+export function useShiftHistory() {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'history'],
+    queryFn: shiftApi.getAll,
+  });
+}
+
+export function useShiftDetail(id: number | null) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'detail', id],
+    queryFn: () => shiftApi.getDetail(id!),
+    enabled: id !== null,
+  });
+}
+
+export function useOpenShift() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: shiftApi.open,
+    onSuccess: (shift) => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      toast.success(`Đã mở ca làm việc ${shift.shiftCode}`);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Không thể mở ca. Kiểm tra lại kết nối.');
+    },
+  });
+}
+
+export function useCloseShift() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: shiftApi.close,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      toast.success('Đã chốt két và đóng ca thành công!');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Không thể chốt két.');
+    },
+  });
+}
+
+// Legacy compatibility – keep old hook signature so shift-manage.tsx doesn't break entirely
 export function useShifts() {
-  const [currentShift, setCurrentShift] = React.useState<WorkShift | null>(() => {
-    try {
-      const stored = localStorage.getItem(CURRENT_SHIFT_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [history, setHistory] = React.useState<WorkShift[]>(() => {
-    try {
-      const stored = localStorage.getItem(SHIFT_HISTORY_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Persist shifts
-  React.useEffect(() => {
-    if (currentShift) {
-      localStorage.setItem(CURRENT_SHIFT_KEY, JSON.stringify(currentShift));
-    } else {
-      localStorage.removeItem(CURRENT_SHIFT_KEY);
-    }
-  }, [currentShift]);
-
-  React.useEffect(() => {
-    localStorage.setItem(SHIFT_HISTORY_KEY, JSON.stringify(history));
-  }, [history]);
-
-  const openShift = (data: OpenShiftRequest) => {
-    const newShift: WorkShift = {
-      id: Date.now(),
-      shiftCode: 'CA-' + Math.floor(100 + Math.random() * 900),
-      cashierName: data.cashierName || 'Thu ngân ca',
-      startTime: new Date().toISOString(),
-      status: 'OPEN',
-      openingCash: Number(data.openingCash) || 0,
-      cashSales: 0,
-      cardSales: 0,
-      totalSales: 0,
-      orderCount: 0,
-      expectedCash: Number(data.openingCash) || 0,
-      createdAt: new Date().toISOString(),
-    };
-
-    setCurrentShift(newShift);
-    toast.success(`Đã mở ca làm việc mới #${newShift.shiftCode}`);
-  };
-
-  const closeShift = (data: CloseShiftRequest) => {
-    if (!currentShift) return;
-
-    const actual = Number(data.actualCash) || 0;
-    const diff = actual - currentShift.expectedCash;
-
-    const closed: WorkShift = {
-      ...currentShift,
-      endTime: new Date().toISOString(),
-      status: 'CLOSED',
-      actualCash: actual,
-      difference: diff,
-      handoverNote: data.handoverNote || '',
-    };
-
-    setHistory((prev) => [closed, ...prev]);
-    setCurrentShift(null);
-    toast.success(`Đã chốt két và đóng ca làm việc thành công`);
-  };
+  const { data: currentShift } = useCurrentShift();
+  const { data: history = [] } = useShiftHistory();
+  const openMutation = useOpenShift();
+  const closeMutation = useCloseShift();
 
   return {
-    currentShift,
+    currentShift: currentShift ?? null,
     history,
-    openShift,
-    closeShift,
+    openShift: (data: { cashierName: string; openingCash: number }) =>
+      openMutation.mutate({ cashierName: data.cashierName, openingCash: data.openingCash }),
+    closeShift: (data: { actualCash: number; handoverNote: string }) =>
+      closeMutation.mutate({ actualCash: data.actualCash, handoverNote: data.handoverNote }),
   };
 }

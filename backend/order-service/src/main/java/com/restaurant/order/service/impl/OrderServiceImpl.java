@@ -39,6 +39,7 @@ public class OrderServiceImpl implements OrderService {
     private final MenuClient menuClient;
     private final OrderEventPublisher eventPublisher;
     private final com.restaurant.order.service.CustomerService customerService;
+    private final com.restaurant.order.service.WorkShiftService workShiftService;
 
     @Override
     @Transactional(readOnly = true)
@@ -286,6 +287,13 @@ public class OrderServiceImpl implements OrderService {
             } catch (Exception e) {
                 log.error("Failed to free table: {}", e.getMessage());
             }
+        }
+
+        // Record sale in current shift (treat as cash by default; future: detect payment method)
+        try {
+            workShiftService.recordSale(updated.getTotalAmount(), true);
+        } catch (Exception e) {
+            log.warn("Shift sale recording failed: {}", e.getMessage());
         }
 
         // Tích điểm thành viên và nâng/duy trì hạng theo chỉ tiêu tháng

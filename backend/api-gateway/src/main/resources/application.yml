@@ -43,11 +43,11 @@ spring:
           filters:
             - name: AuthenticationFilter
 
-        # Order Service & Customer Loyalty
+        # Order Service & Customer Loyalty & Shifts
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/orders/**,/api/expenses/**,/api/customers/**
+            - Path=/api/orders/**,/api/expenses/**,/api/customers/**,/api/shifts/**
           filters:
             - name: AuthenticationFilter
 
@@ -61,9 +61,15 @@ spring:
         - id: table-service
           uri: lb://table-service
           predicates:
-            - Path=/api/tables/**,/api/reservations/**,/api/qr/**
+            - Path=/api/tables/**,/api/reservations/**,/api/qr/**,/api/service-requests/**
           filters:
             - name: AuthenticationFilter
+
+        # Table Service - Public service requests (no auth)
+        - id: table-service-public-requests
+          uri: lb://table-service
+          predicates:
+            - Path=/api/service-requests/public
 
         # Report Service
         - id: report-service
