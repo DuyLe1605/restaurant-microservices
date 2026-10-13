@@ -38,6 +38,7 @@ public class OrderServiceImpl implements OrderService {
     private final TableClient tableClient;
     private final MenuClient menuClient;
     private final OrderEventPublisher eventPublisher;
+    private final com.restaurant.order.service.CustomerService customerService;
 
     @Override
     @Transactional(readOnly = true)
@@ -284,6 +285,15 @@ public class OrderServiceImpl implements OrderService {
                 tableClient.updateTableStatus(order.getTableId(), TableStatusDto.builder().status("FREE").build());
             } catch (Exception e) {
                 log.error("Failed to free table: {}", e.getMessage());
+            }
+        }
+
+        // Tích điểm thành viên và nâng/duy trì hạng theo chỉ tiêu tháng
+        if (order.getCustomerPhone() != null && !order.getCustomerPhone().isBlank()) {
+            try {
+                customerService.processOrderPayment(order.getCustomerPhone(), updated.getTotalAmount(), null);
+            } catch (Exception e) {
+                log.warn("Customer loyalty reward failed: {}", e.getMessage());
             }
         }
 

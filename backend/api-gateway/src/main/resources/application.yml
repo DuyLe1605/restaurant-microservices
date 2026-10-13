@@ -43,11 +43,11 @@ spring:
           filters:
             - name: AuthenticationFilter
 
-        # Order Service
+        # Order Service & Customer Loyalty
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/orders/**,/api/expenses/**
+            - Path=/api/orders/**,/api/expenses/**,/api/customers/**
           filters:
             - name: AuthenticationFilter
 
