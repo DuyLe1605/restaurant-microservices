@@ -18,9 +18,11 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Search, Edit2, Trash2, AlertTriangle, FolderPlus, Layers, Check, Download, Printer } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, AlertTriangle, FolderPlus, Layers, Check, Download, Printer, MoreHorizontal } from 'lucide-react';
 import { Ingredient, IngredientCategory } from '@/types/ingredient';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
+import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { ExportDropdown } from '@/components/shared/export-dropdown';
 import { toast } from 'sonner';
 
 export function IngredientListPage() {
@@ -237,17 +239,15 @@ export function IngredientListPage() {
         title="Quản Lý Nguyên Liệu"
         description="Danh mục vật tư thực phẩm, đơn vị tính, ngưỡng tồn kho an toàn và quản lý danh mục phân loại chuẩn"
       >
-        <div className="flex items-center gap-2">
-          {data && data.content.length > 0 && (
-            <>
-              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
-                <Download className="h-4 w-4 text-emerald-600" /> Xuất Excel
-              </Button>
-              <Button variant="outline" onClick={handlePrintAuditReport} className="gap-2">
-                <Printer className="h-4 w-4" /> In biên bản kiểm kê
-              </Button>
-            </>
-          )}
+        <div className="flex items-center gap-2.5">
+          <ExportDropdown
+            onExportExcel={data && data.content.length > 0 ? handleExportExcel : undefined}
+            onPrintReport={data && data.content.length > 0 ? handlePrintAuditReport : undefined}
+            excelLabel="Xuất sổ kiểm kê tồn kho (.xlsx)"
+            printLabel="In biên bản kiểm kê vật tư (A4)"
+            disabled={isLoading || !data || data.content.length === 0}
+            buttonText="Xuất & Kiểm kê"
+          />
           <Button variant="outline" onClick={() => setCategoryModalOpen(true)} className="gap-2">
             <Layers className="h-4 w-4" /> Quản lý danh mục
           </Button>
@@ -335,13 +335,37 @@ export function IngredientListPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">{item.minStock} {item.unit}</TableCell>
-                    <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(item)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteId(item.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="text-right">
+                      <DropdownMenu
+                        align="end"
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                            title="Thao tác"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Thao tác</span>
+                          </Button>
+                        }
+                      >
+                        <DropdownMenuItem
+                          icon={<Edit2 className="h-4 w-4 text-blue-600" />}
+                          onClick={() => handleOpenEdit(item)}
+                        >
+                          Chỉnh sửa thông tin
+                        </DropdownMenuItem>
+
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="danger"
+                          icon={<Trash2 className="h-4 w-4 text-rose-600" />}
+                          onClick={() => setDeleteId(item.id)}
+                        >
+                          Xóa nguyên liệu
+                        </DropdownMenuItem>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 );

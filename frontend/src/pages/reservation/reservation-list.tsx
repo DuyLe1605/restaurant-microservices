@@ -12,8 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Trash2, Calendar, Search } from 'lucide-react';
+import { Plus, Trash2, Calendar, Search, MoreHorizontal } from 'lucide-react';
 import { Reservation, ReservationStatus } from '@/types/table';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 export function ReservationListPage() {
   const { data: reservations, isLoading } = useReservations();
@@ -136,14 +137,28 @@ export function ReservationListPage() {
                   <TableCell><StatusBadge status={r.status} /></TableCell>
                   <TableCell className="text-xs max-w-xs truncate text-muted-foreground">{r.note || '---'}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteId(r.id)}
+                    <DropdownMenu
+                      align="end"
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                          title="Thao tác"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Thao tác</span>
+                        </Button>
+                      }
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <DropdownMenuItem
+                        variant="danger"
+                        icon={<Trash2 className="h-4 w-4 text-rose-600" />}
+                        onClick={() => setDeleteId(r.id)}
+                      >
+                        Hủy lịch đặt bàn
+                      </DropdownMenuItem>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

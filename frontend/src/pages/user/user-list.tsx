@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, KeyRound, Trash2, Search, ShieldCheck } from 'lucide-react';
+import { Plus, KeyRound, Trash2, Search, ShieldCheck, MoreHorizontal } from 'lucide-react';
 import { Role, User } from '@/types/auth';
+import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 export function UserListPage() {
   const [page, setPage] = React.useState(0);
@@ -134,27 +135,36 @@ export function UserListPage() {
                 <TableCell><StatusBadge status={u.role} /></TableCell>
                 <TableCell><StatusBadge status={u.active ? 'ACTIVE' : 'INACTIVE'} /></TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0"
-                      title="Đổi mật khẩu"
+                  <DropdownMenu
+                    align="end"
+                    trigger={
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                        title="Thao tác"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Thao tác</span>
+                      </Button>
+                    }
+                  >
+                    <DropdownMenuItem
+                      icon={<KeyRound className="h-4 w-4 text-primary" />}
                       onClick={() => setPasswordModalUser({ id: u.id, username: u.username })}
                     >
-                      <KeyRound className="h-4 w-4 text-primary" />
-                    </Button>
+                      Đổi mật khẩu
+                    </DropdownMenuItem>
 
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                      title="Xóa tài khoản"
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="danger"
+                      icon={<Trash2 className="h-4 w-4 text-rose-600" />}
                       onClick={() => setDeleteId(u.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      Xóa tài khoản
+                    </DropdownMenuItem>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}

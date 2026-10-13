@@ -12,9 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Check, Trash2, Download, Printer, FileText, Calendar, Search, RotateCcw } from 'lucide-react';
+import { Plus, Check, Trash2, Download, Printer, FileText, Calendar, Search, RotateCcw, Eye, MoreHorizontal } from 'lucide-react';
 import { ReceiptDetail, InventoryReceipt } from '@/types/inventory';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
+import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { ExportDropdown } from '@/components/shared/export-dropdown';
 
 export function ReceiptListPage() {
   const [page, setPage] = React.useState(0);
@@ -30,6 +32,7 @@ export function ReceiptListPage() {
   const [statusFilter, setStatusFilter] = React.useState('');
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [viewReceipt, setViewReceipt] = React.useState<InventoryReceipt | null>(null);
   const [supplier, setSupplier] = React.useState('Công ty TNHH Thực Phẩm Sạch');
   const [receiptDate, setReceiptDate] = React.useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = React.useState('');
@@ -226,17 +229,17 @@ export function ReceiptListPage() {
         title="Quản Lý Nhập Kho (Receipts)"
         description="Theo dõi danh sách các phiếu nhập hàng nguyên vật liệu từ nhà cung cấp"
       >
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportListExcel} disabled={isLoading || filteredReceipts.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Xuất Excel
-          </Button>
-          <Button variant="outline" onClick={handlePrintListReport} disabled={isLoading || filteredReceipts.length === 0}>
-            <Printer className="h-4 w-4 mr-2" />
-            In sổ nhập kho
-          </Button>
-          <Button onClick={handleOpenCreate}>
-            <Plus className="h-4 w-4 mr-2" />
+        <div className="flex items-center gap-2.5">
+          <ExportDropdown
+            onExportExcel={handleExportListExcel}
+            onPrintReport={handlePrintListReport}
+            excelLabel="Xuất sổ theo dõi nhập kho (.xlsx)"
+            printLabel="In bảng kê sổ nhập kho (A4)"
+            disabled={isLoading || filteredReceipts.length === 0}
+            buttonText="Xuất & In sổ nhập"
+          />
+          <Button onClick={handleOpenCreate} className="shadow-xs font-semibold gap-1.5">
+            <Plus className="h-4 w-4" />
             Tạo phiếu nhập
           </Button>
         </div>
@@ -348,38 +351,76 @@ export function ReceiptListPage() {
             </TableHeader>
             <TableBody>
               {filteredReceipts.map((receipt) => (
-                <TableRow key={receipt.id}>
-                  <TableCell className="font-bold">PNK-#{receipt.id}</TableCell>
+                <TableRow key={receipt.id} className="hover:bg-muted/40 transition-colors">
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => setViewReceipt(receipt)}
+                      className="font-bold text-primary hover:underline cursor-pointer"
+                      title="Bấm để xem chi tiết các mặt hàng"
+                    >
+                      PNK-#{receipt.id}
+                    </button>
+                  </TableCell>
                   <TableCell>{formatDate(receipt.receiptDate)}</TableCell>
                   <TableCell className="font-semibold">{receipt.supplier || 'N/A'}</TableCell>
-                  <TableCell>{receipt.items?.length || 0} mặt hàng</TableCell>
-                  <TableCell className="font-bold text-emerald-600">{formatVND(receipt.totalAmount)}</TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => setViewReceipt(receipt)}
+                      className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      title="Xem các mặt hàng"
+                    >
+                      {receipt.items?.length || 0} mặt hàng
+                    </button>
+                  </TableCell>
+                  <TableCell className="font-bold text-emerald-600 dark:text-emerald-400">{formatVND(receipt.totalAmount)}</TableCell>
                   <TableCell>
                     <StatusBadge status={receipt.status} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        title="In phiếu nhập kho này"
-                        onClick={() => handlePrintSingleReceipt(receipt)}
-                      >
-                        <Printer className="h-3.5 w-3.5 mr-1" />
-                        In phiếu
-                      </Button>
-                      {receipt.status === 'PENDING' && (
+                    <DropdownMenu
+                      align="end"
+                      trigger={
                         <Button
                           size="sm"
-                          variant="success"
-                          isLoading={completeMutation.isPending}
-                          onClick={() => completeMutation.mutate(receipt.id)}
+                          variant="ghost"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                          title="Thao tác"
                         >
-                          <Check className="h-4 w-4 mr-1.5" />
-                          Chốt kho
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Thao tác</span>
                         </Button>
+                      }
+                    >
+                      <DropdownMenuItem
+                        icon={<Eye className="h-4 w-4 text-primary" />}
+                        onClick={() => setViewReceipt(receipt)}
+                      >
+                        Xem chi tiết mặt hàng
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        icon={<Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                        onClick={() => handlePrintSingleReceipt(receipt)}
+                      >
+                        In phiếu nhập kho
+                      </DropdownMenuItem>
+
+                      {receipt.status === 'PENDING' && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="success"
+                            icon={<Check className="h-4 w-4 text-emerald-600" />}
+                            disabled={completeMutation.isPending}
+                            onClick={() => completeMutation.mutate(receipt.id)}
+                          >
+                            Chốt nhập kho
+                          </DropdownMenuItem>
+                        </>
                       )}
-                    </div>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -509,6 +550,145 @@ export function ReceiptListPage() {
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      {/* Modal View Receipt Details & Items (Xem các mặt hàng trong phiếu) */}
+      <Dialog
+        open={!!viewReceipt}
+        onOpenChange={(open) => !open && setViewReceipt(null)}
+        title={`Chi Tiết Phiếu Nhập Kho PNK-#${viewReceipt?.id || ''}`}
+        description={`Nhà cung cấp: ${viewReceipt?.supplier || 'N/A'} • Ngày nhập: ${viewReceipt ? formatDate(viewReceipt.receiptDate) : ''}`}
+        className="max-w-2xl"
+      >
+        {viewReceipt && (
+          <div className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-muted/30 border text-xs">
+              <div>
+                <span className="text-muted-foreground block text-[11px]">Trạng thái:</span>
+                <div className="mt-0.5">
+                  <StatusBadge status={viewReceipt.status} />
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px]">Tổng số mặt hàng:</span>
+                <span className="font-bold text-foreground text-sm mt-0.5 block">
+                  {viewReceipt.items?.length || 0} mặt hàng
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px]">Tổng giá trị nhập:</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm mt-0.5 block">
+                  {formatVND(viewReceipt.totalAmount)}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px]">Ghi chú:</span>
+                <span className="font-medium text-foreground text-xs mt-0.5 block truncate" title={viewReceipt.note || 'Không có'}>
+                  {viewReceipt.note || '—'}
+                </span>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Danh Sách Các Mặt Hàng Nguyên Liệu Nhập
+                </h4>
+              </div>
+
+              <div className="rounded-xl border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 text-xs">
+                      <TableHead className="w-10 text-center">STT</TableHead>
+                      <TableHead>Tên mặt hàng nguyên liệu</TableHead>
+                      <TableHead className="text-center">ĐVT</TableHead>
+                      <TableHead className="text-right">Số lượng</TableHead>
+                      <TableHead className="text-right">Đơn giá nhập</TableHead>
+                      <TableHead className="text-right">Thành tiền</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {viewReceipt.items && viewReceipt.items.length > 0 ? (
+                      viewReceipt.items.map((item, idx) => {
+                        const subtotal = item.qty * item.unitPrice;
+                        return (
+                          <TableRow key={idx} className="text-xs">
+                            <TableCell className="text-center font-mono text-muted-foreground">
+                              {idx + 1}
+                            </TableCell>
+                            <TableCell className="font-semibold text-foreground">
+                              {item.ingredientName || `Nguyên liệu #${item.ingredientId}`}
+                            </TableCell>
+                            <TableCell className="text-center text-muted-foreground font-medium">
+                              {item.unit || 'kg'}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-foreground">
+                              {item.qty}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {formatVND(item.unitPrice)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-foreground">
+                              {formatVND(subtotal)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                          Chưa có thông tin chi tiết các mặt hàng
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Dialog Actions */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePrintSingleReceipt(viewReceipt)}
+                className="gap-1.5"
+              >
+                <Printer className="h-4 w-4" /> In phiếu nhập
+              </Button>
+
+              <div className="flex gap-2">
+                {viewReceipt.status === 'PENDING' && (
+                  <Button
+                    size="sm"
+                    variant="success"
+                    isLoading={completeMutation.isPending}
+                    onClick={() => {
+                      completeMutation.mutate(viewReceipt.id, {
+                        onSuccess: () => setViewReceipt(null),
+                      });
+                    }}
+                    className="gap-1.5"
+                  >
+                    <Check className="h-4 w-4" /> Chốt nhập kho ngay
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setViewReceipt(null)}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Dialog>
     </div>
   );

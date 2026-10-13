@@ -21,8 +21,10 @@ import {
   CheckCircle2,
   FileText,
   UserCheck,
+  MoreHorizontal,
 } from 'lucide-react';
 import { WorkShift } from '@/types/shift';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 export function ShiftManagePage() {
   const { currentShift, history, openShift, closeShift } = useShifts();
@@ -261,9 +263,27 @@ export function ShiftManagePage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => setReceiptShift(shift)}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu
+                        align="end"
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                            title="Thao tác"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Thao tác</span>
+                          </Button>
+                        }
+                      >
+                        <DropdownMenuItem
+                          icon={<Printer className="h-4 w-4 text-blue-600" />}
+                          onClick={() => setReceiptShift(shift)}
+                        >
+                          In biên bản bàn giao ca
+                        </DropdownMenuItem>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))

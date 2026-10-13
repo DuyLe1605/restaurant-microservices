@@ -11,9 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Trash2, Download, Printer, FileText, Calendar, Search, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Download, Printer, FileText, Calendar, Search, RotateCcw, MoreHorizontal } from 'lucide-react';
 import { IssueDetail, IssueType, InventoryIssue } from '@/types/inventory';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { ExportDropdown } from '@/components/shared/export-dropdown';
 
 export function IssueListPage() {
   const [page, setPage] = React.useState(0);
@@ -229,21 +231,17 @@ export function IssueListPage() {
         title="Quản Lý Xuất Kho (Issues)"
         description="Lịch sử xuất bán từ đơn hàng và phiếu xuất hủy / thủ công"
       >
-        <div className="flex items-center gap-2">
-          {data && data.content.length > 0 && (
-            <>
-              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
-                <Download className="h-4 w-4 text-emerald-600" />
-                Xuất Excel
-              </Button>
-              <Button variant="outline" onClick={handlePrintIssueBook} className="gap-2">
-                <Printer className="h-4 w-4" />
-                In sổ xuất kho
-              </Button>
-            </>
-          )}
-          <Button onClick={handleOpenCreate}>
-            <Plus className="h-4 w-4 mr-2" />
+        <div className="flex items-center gap-2.5">
+          <ExportDropdown
+            onExportExcel={data && data.content.length > 0 ? handleExportExcel : undefined}
+            onPrintReport={data && data.content.length > 0 ? handlePrintIssueBook : undefined}
+            excelLabel="Xuất sổ theo dõi xuất kho (.xlsx)"
+            printLabel="In bảng kê sổ xuất kho (A4)"
+            disabled={isLoading || !data || data.content.length === 0}
+            buttonText="Xuất & In sổ xuất"
+          />
+          <Button onClick={handleOpenCreate} className="shadow-xs font-semibold gap-1.5">
+            <Plus className="h-4 w-4" />
             Xuất kho thủ công
           </Button>
         </div>
@@ -378,16 +376,27 @@ export function IssueListPage() {
                       <StatusBadge status={issue.status} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlePrintSingleIssue(issue)}
-                        title="In phiếu xuất kho"
-                        className="gap-1 h-8 px-2"
+                      <DropdownMenu
+                        align="end"
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                            title="Thao tác"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Thao tác</span>
+                          </Button>
+                        }
                       >
-                        <Printer className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs">In phiếu</span>
-                      </Button>
+                        <DropdownMenuItem
+                          icon={<Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                          onClick={() => handlePrintSingleIssue(issue)}
+                        >
+                          In phiếu xuất kho
+                        </DropdownMenuItem>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))

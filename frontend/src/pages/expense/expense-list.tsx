@@ -11,9 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Trash2, DollarSign, Search, Download, Printer, Calendar, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Search, Download, Printer, Calendar, RotateCcw, MoreHorizontal } from 'lucide-react';
 import { Expense } from '@/types/expense';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { ExportDropdown } from '@/components/shared/export-dropdown';
 
 export function ExpenseListPage() {
   const [page, setPage] = React.useState(0);
@@ -195,20 +197,16 @@ export function ExpenseListPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Sổ Chi phí Vận hành" description="Ghi nhận các khoản chi phí mặt bằng, điện nước, nhân công, bảo trì và mua sắm.">
-        <div className="flex items-center gap-2">
-          {filteredExpenses.length > 0 && (
-            <>
-              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
-                <Download className="h-4 w-4 text-emerald-600" />
-                Xuất Excel
-              </Button>
-              <Button variant="outline" onClick={handlePrintExpenseBook} className="gap-2">
-                <Printer className="h-4 w-4" />
-                In sổ chi phí
-              </Button>
-            </>
-          )}
-          <Button onClick={() => setDialogOpen(true)} className="gap-2">
+        <div className="flex items-center gap-2.5">
+          <ExportDropdown
+            onExportExcel={filteredExpenses.length > 0 ? handleExportExcel : undefined}
+            onPrintReport={filteredExpenses.length > 0 ? handlePrintExpenseBook : undefined}
+            excelLabel="Xuất sổ theo dõi chi phí (.xlsx)"
+            printLabel="In bảng kê sổ chi phí (A4)"
+            disabled={isLoading || filteredExpenses.length === 0}
+            buttonText="Xuất & In sổ chi"
+          />
+          <Button onClick={() => setDialogOpen(true)} className="gap-2 shadow-xs font-semibold">
             <Plus className="h-4 w-4" /> Ghi chi phí mới
           </Button>
         </div>
@@ -324,14 +322,28 @@ export function ExpenseListPage() {
                   <TableCell className="text-xs text-muted-foreground max-w-sm">{exp.description || '---'}</TableCell>
                   <TableCell className="text-right font-black text-destructive text-sm">{formatVND(exp.amount)}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteId(exp.id)}
+                    <DropdownMenu
+                      align="end"
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                          title="Thao tác"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Thao tác</span>
+                        </Button>
+                      }
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <DropdownMenuItem
+                        variant="danger"
+                        icon={<Trash2 className="h-4 w-4 text-rose-600" />}
+                        onClick={() => setDeleteId(exp.id)}
+                      >
+                        Xóa khoản chi phí
+                      </DropdownMenuItem>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

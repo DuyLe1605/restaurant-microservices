@@ -27,10 +27,12 @@ import {
   Percent,
   CheckCircle2,
   Sparkles,
+  MoreHorizontal,
 } from 'lucide-react';
 import { MenuItem, RecipeItem } from '@/types/menu';
 import { Ingredient } from '@/types/ingredient';
 import { toast } from 'sonner';
+import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 export function MenuListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -423,24 +425,43 @@ export function MenuListPage() {
                       </TableCell>
 
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
+                        <DropdownMenu
+                          align="end"
+                          trigger={
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                              title="Thao tác"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Thao tác</span>
+                            </Button>
+                          }
+                        >
+                          <DropdownMenuItem
+                            icon={<Edit2 className="h-4 w-4 text-blue-600" />}
                             onClick={() => handleOpenEditDish(item)}
                           >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                            Chỉnh sửa món ăn
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            icon={<FlaskConical className="h-4 w-4 text-purple-600" />}
+                            onClick={() => handleOpenBomDialog(item)}
+                          >
+                            Định lượng công thức (BOM)
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="danger"
+                            icon={<Trash2 className="h-4 w-4 text-rose-600" />}
                             onClick={() => setDeleteId(item.id)}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                            Xóa món ăn
+                          </DropdownMenuItem>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
