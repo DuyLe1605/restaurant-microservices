@@ -17,9 +17,11 @@ import {
   BarChart3,
   Users,
   Award,
+  BellRing,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
+import { usePendingCount } from '@/hooks/use-service-requests';
 
 interface NavItem {
   name: string;
@@ -68,6 +70,11 @@ const navSections: NavSection[] = [
         name: 'Mã QR bàn ăn',
         href: '/qr',
         icon: QrCode,
+      },
+      {
+        name: 'Yêu cầu phục vụ',
+        href: '/service-requests',
+        icon: BellRing,
       },
     ],
   },
@@ -152,6 +159,7 @@ const navSections: NavSection[] = [
 export function AppSidebar() {
   const { user } = useAuthStore();
   const location = useLocation();
+  const { data: pendingCount = 0 } = usePendingCount();
 
   // Collapsed state persisted in localStorage
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
@@ -314,7 +322,11 @@ export function AppSidebar() {
                           {!isCollapsed && <span className="truncate">{item.name}</span>}
                         </div>
 
-                        {!isCollapsed && item.badge && (
+                        {!isCollapsed && item.href === '/service-requests' && pendingCount > 0 ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 bg-rose-500 text-white animate-pulse">
+                            {pendingCount}
+                          </span>
+                        ) : !isCollapsed && item.badge ? (
                           <span
                             className={cn(
                               'text-[10px] font-bold px-1.5 py-0.2 rounded-full shrink-0 tracking-wider',
@@ -323,7 +335,7 @@ export function AppSidebar() {
                           >
                             {item.badge}
                           </span>
-                        )}
+                        ) : null}
                       </NavLink>
                     );
                   })}

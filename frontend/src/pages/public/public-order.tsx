@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { useCreateServiceRequest } from '@/hooks/use-service-requests';
+import { ServiceRequestType } from '@/api/service-request.api';
 import {
   Plus,
   Minus,
@@ -101,6 +103,10 @@ export function PublicOrderPage() {
   const [submitting, setSubmitting] = React.useState(false);
   const [lastSubmittedOrder, setLastSubmittedOrder] = React.useState<any>(null);
 
+  // Service request state
+  const createServiceRequest = useCreateServiceRequest();
+  const [sentRequests, setSentRequests] = React.useState<Set<ServiceRequestType>>(new Set());
+
   // Quick preset notes
   const notePresets = ['Không cay', 'Ít cay', 'Không hành', 'Ít đá', 'Không đường', 'Lên món nhanh'];
 
@@ -192,12 +198,19 @@ export function PublicOrderPage() {
   const totalQty = cartEntries.reduce((sum, e) => sum + e.qty, 0);
   const totalAmount = cartEntries.reduce((sum, e) => sum + e.item.price * e.qty, 0);
 
-  // Quick Service Request Actions
-  const handleCallStaff = (action: string) => {
-    toast.success(`Đã gửi yêu cầu "${action}" cho nhân viên bàn ${session?.tableNumber || ''}! Nhân viên sẽ tới ngay.`, {
-      icon: '🔔',
-      duration: 3000,
-    });
+  // Quick Service Request Actions – calls real backend API
+  const handleCallStaff = (type: ServiceRequestType, label?: string) => {
+    if (!session?.tableNumber || createServiceRequest.isPending || sentRequests.has(type)) return;
+    createServiceRequest.mutate(
+      { tableNumber: session.tableNumber, type, note: undefined },
+      {
+        onSuccess: () => {
+          setSentRequests((prev) => new Set(prev).add(type));
+          // Reset "sent" state after 30s to allow re-requesting
+          setTimeout(() => setSentRequests((prev) => { const s = new Set(prev); s.delete(type); return s; }), 30000);
+        },
+      }
+    );
   };
 
   const handleSubmitOrder = async () => {
@@ -307,7 +320,7 @@ export function PublicOrderPage() {
           <div className="grid grid-cols-2 gap-2 pt-2">
             <Button
               variant="outline"
-              onClick={() => handleCallStaff('Yêu cầu thanh toán')}
+              onClick={() => handleCallStaff('CALL_STAFF', 'Yêu cầu thanh toán')}
               className="h-11 text-xs font-bold rounded-xl"
             >
               <BellRing className="h-4 w-4 mr-1.5 text-amber-500" />
@@ -377,20 +390,59 @@ export function PublicOrderPage() {
 
             <button
               type="button"
-              onClick={() => handleCallStaff('Gọi nhân viên phục vụ')}
-              className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-[11px] font-medium flex items-center gap-1.5 transition-all text-amber-100"
+              onClick={() => handleCallStaff('CALL_STAFF', 'Gọi phục vụ')}
+              disabled={createServiceRequest.isPending || sentRequests.has('CALL_STAFF')}
+              className={cn(
+                'whitespace-nowrap px-2.5 py-1 rounded-xl border text-[11px] font-medium flex items-center gap-1.5 transition-all',
+                sentRequests.has('CALL_STAFF')
+                  ? 'bg-amber-500/30 border-amber-400/40 text-amber-200 cursor-default'
+                  : 'bg-white/10 hover:bg-white/20 border-white/10 text-amber-100'
+              )}
             >
-              <BellRing className="h-3.5 w-3.5 text-amber-400" />
-              Gọi phục vụ
+              {sentRequests.has('CALL_STAFF') ? (
+                <CheckCircle className="h-3.5 w-3.5 text-amber-400" />
+              ) : (
+                <BellRing className="h-3.5 w-3.5 text-amber-400" />
+              )}
+              {sentRequests.has('CALL_STAFF') ? 'Đã gọi ✓' : 'Gọi phục vụ'}
             </button>
 
             <button
               type="button"
-              onClick={() => handleCallStaff('Yêu cầu thêm nước lọc / khăn lạnh')}
-              className="whitespace-nowrap px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-[11px] font-medium flex items-center gap-1.5 transition-all text-amber-100"
+              onClick={() => handleCallStaff('WATER', 'Thêm nước')}
+              disabled={createServiceRequest.isPending || sentRequests.has('WATER')}
+              className={cn(
+                'whitespace-nowrap px-2.5 py-1 rounded-xl border text-[11px] font-medium flex items-center gap-1.5 transition-all',
+                sentRequests.has('WATER')
+                  ? 'bg-cyan-500/30 border-cyan-400/40 text-cyan-200 cursor-default'
+                  : 'bg-white/10 hover:bg-white/20 border-white/10 text-amber-100'
+              )}
             >
-              <Droplets className="h-3.5 w-3.5 text-cyan-400" />
-              Thêm nước / khăn
+              {sentRequests.has('WATER') ? (
+                <CheckCircle className="h-3.5 w-3.5 text-cyan-400" />
+              ) : (
+                <Droplets className="h-3.5 w-3.5 text-cyan-400" />
+              )}
+              {sentRequests.has('WATER') ? 'Đã gửi ✓' : 'Thêm nước'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCallStaff('TOWEL', 'Gọi khăn')}
+              disabled={createServiceRequest.isPending || sentRequests.has('TOWEL')}
+              className={cn(
+                'whitespace-nowrap px-2.5 py-1 rounded-xl border text-[11px] font-medium flex items-center gap-1.5 transition-all',
+                sentRequests.has('TOWEL')
+                  ? 'bg-emerald-500/30 border-emerald-400/40 text-emerald-200 cursor-default'
+                  : 'bg-white/10 hover:bg-white/20 border-white/10 text-amber-100'
+              )}
+            >
+              {sentRequests.has('TOWEL') ? (
+                <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />
+              )}
+              {sentRequests.has('TOWEL') ? 'Đã gửi ✓' : 'Gọi khăn'}
             </button>
           </div>
         </div>

@@ -27,6 +27,7 @@ import { PublicOrderPage } from '@/pages/public/public-order';
 import { KitchenDisplayPage } from '@/pages/kitchen/kitchen-display';
 import { ShiftManagePage } from '@/pages/shift/shift-manage';
 import { CustomerListPage } from '@/pages/customer/customer-list';
+import { ServiceRequestsPage } from '@/pages/service-requests/service-requests-page';
 
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -63,6 +64,7 @@ export function App() {
           <Route path="/orders/:id/invoice" element={<InvoiceViewPage />} />
           <Route path="/orders/invoice/:id" element={<InvoiceViewPage />} />
           <Route path="/customers" element={<CustomerListPage />} />
+          <Route path="/service-requests" element={<ServiceRequestsPage />} />
           <Route path="/qr" element={<QrManagePage />} />
           <Route path="/reports/stock" element={<StockReportPage />} />
 

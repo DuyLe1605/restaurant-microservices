@@ -23,7 +23,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             "/api/auth/register",
             "/api/auth/internal",
             "/api/public-order",
-            "/api/tables/by-token"
+            "/api/tables/by-token",
+            "/api/service-requests/public"
     );
 
     public AuthenticationFilter() {
