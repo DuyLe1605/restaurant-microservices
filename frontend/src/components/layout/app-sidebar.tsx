@@ -17,6 +17,8 @@ import {
   BarChart3,
   Users,
   Award,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 interface NavItem {
@@ -33,50 +35,116 @@ interface NavSection {
   items: NavItem[];
 }
 
+// 4 Logical Core Groups based on Restaurant Management ERP Standards
 const navSections: NavSection[] = [
   {
-    title: 'TỔNG QUAN',
+    title: 'BÁN HÀNG & PHỤC VỤ',
     items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER'] },
+      {
+        name: 'Bán hàng (POS)',
+        href: '/orders/create',
+        icon: UtensilsCrossed,
+        badge: 'Mở Đơn',
+        badgeColor: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30',
+      },
+      {
+        name: 'Sổ đơn hàng',
+        href: '/orders',
+        icon: Receipt,
+      },
+      {
+        name: 'Sơ đồ bàn & Đặt bàn',
+        href: '/tables',
+        icon: Table,
+      },
+      {
+        name: 'Màn hình Bếp (KDS)',
+        href: '/kitchen',
+        icon: ChefHat,
+        badge: 'Live',
+        badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30',
+      },
+      {
+        name: 'Mã QR bàn ăn',
+        href: '/qr',
+        icon: QrCode,
+      },
     ],
   },
   {
-    title: 'VẬN HÀNH & BÁN HÀNG',
+    title: 'KHÁCH HÀNG & CA LÀM',
     items: [
-      { name: 'Bán hàng (POS)', href: '/orders/create', icon: UtensilsCrossed, badge: 'Mở Đơn', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-      { name: 'Sổ đơn hàng', href: '/orders', icon: Receipt },
-      { name: 'Màn hình Bếp (KDS)', href: '/kitchen', icon: ChefHat, badge: 'Live', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-      { name: 'Sơ đồ bàn & Đặt bàn', href: '/tables', icon: Table },
-      { name: 'Khách hàng & Hội viên', href: '/customers', icon: Award, badge: 'Loyalty', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
-      { name: 'Quản lý ca làm việc', href: '/shifts', icon: Clock },
-      { name: 'Mã QR bàn ăn', href: '/qr', icon: QrCode },
+      {
+        name: 'Khách hàng & Hội viên',
+        href: '/customers',
+        icon: Award,
+        badge: 'Loyalty',
+        badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30',
+      },
+      {
+        name: 'Quản lý ca làm việc',
+        href: '/shifts',
+        icon: Clock,
+      },
+      {
+        name: 'Quản trị nhân sự',
+        href: '/users',
+        icon: Users,
+        roles: ['ADMIN'],
+      },
     ],
   },
   {
-    title: 'ẨM THỰC & ĐỊNH LƯỢNG',
+    title: 'ẨM THỰC & KHO BÃI',
     items: [
-      { name: 'Thực đơn & Công thức', href: '/menu', icon: BookOpen, badge: 'BOM', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400', roles: ['ADMIN', 'MANAGER'] },
+      {
+        name: 'Thực đơn & Công thức',
+        href: '/menu',
+        icon: BookOpen,
+        badge: 'BOM',
+        badgeColor: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30',
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        name: 'Nguyên liệu kho',
+        href: '/ingredients',
+        icon: Apple,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        name: 'Nhập / Xuất kho',
+        href: '/inventory/receipts',
+        icon: Boxes,
+        roles: ['ADMIN', 'MANAGER'],
+      },
     ],
   },
   {
-    title: 'KHO & NGUYÊN LIỆU',
+    title: 'BÁO CÁO & TÀI CHÍNH',
     items: [
-      { name: 'Nguyên liệu kho', href: '/ingredients', icon: Apple, roles: ['ADMIN', 'MANAGER'] },
-      { name: 'Nhập / Xuất kho', href: '/inventory/receipts', icon: Boxes, roles: ['ADMIN', 'MANAGER'] },
-    ],
-  },
-  {
-    title: 'TÀI CHÍNH & BÁO CÁO',
-    items: [
-      { name: 'Sổ chi phí vận hành', href: '/expenses', icon: DollarSign, roles: ['ADMIN', 'MANAGER'] },
-      { name: 'Báo cáo doanh thu', href: '/reports/revenue', icon: BarChart3, roles: ['ADMIN', 'MANAGER'] },
-      { name: 'Báo cáo tồn kho', href: '/reports/stock', icon: BarChart3 },
-    ],
-  },
-  {
-    title: 'HỆ THỐNG',
-    items: [
-      { name: 'Quản trị nhân sự', href: '/users', icon: Users, roles: ['ADMIN'] },
+      {
+        name: 'Dashboard Tổng quan',
+        href: '/dashboard',
+        icon: LayoutDashboard,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        name: 'Báo cáo doanh thu',
+        href: '/reports/revenue',
+        icon: BarChart3,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        name: 'Báo cáo tồn kho',
+        href: '/reports/stock',
+        icon: BarChart3,
+      },
+      {
+        name: 'Sổ chi phí vận hành',
+        href: '/expenses',
+        icon: DollarSign,
+        roles: ['ADMIN', 'MANAGER'],
+      },
     ],
   },
 ];
@@ -84,6 +152,25 @@ const navSections: NavSection[] = [
 export function AppSidebar() {
   const { user } = useAuthStore();
   const location = useLocation();
+
+  // Collapsed state persisted in localStorage
+  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem('gourmet_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapsed = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('gourmet_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const isItemActive = React.useCallback(
     (itemHref: string) => {
@@ -101,43 +188,84 @@ export function AppSidebar() {
 
       // Dashboard chỉ active khi đúng /dashboard
       if (itemHref === '/dashboard') {
-        return false;
+        return pathname === '/dashboard';
       }
 
-      // Sổ đơn hàng: active khi vào trang con chi tiết hóa đơn (ví dụ: /orders/12/invoice),
-      // nhưng loại trừ /orders/create và /orders/new vì đã có mục POS riêng
+      // Sổ đơn hàng: active khi vào trang con chi tiết hóa đơn (/orders/:id/invoice)
       if (itemHref === '/orders') {
         return pathname.startsWith('/orders/') && pathname !== '/orders/create' && pathname !== '/orders/new';
       }
 
-      // Trang công thức /recipes thuộc mục Thực đơn & Công thức (/menu)
+      // Sơ đồ bàn & Đặt bàn
+      if (itemHref === '/tables' && pathname === '/reservations') {
+        return true;
+      }
+
+      // Thực đơn & Công thức (/menu)
       if (itemHref === '/menu' && pathname === '/recipes') {
         return true;
       }
 
-      // Khớp các trang con khác (ví dụ: /inventory/receipts/...)
+      // Nhập / Xuất kho
+      if (itemHref === '/inventory/receipts' && pathname.startsWith('/inventory/')) {
+        return true;
+      }
+
+      // Khớp các trang con khác
       return pathname.startsWith(`${itemHref}/`);
     },
     [location.pathname]
   );
 
   return (
-    <aside className="w-64 border-r bg-card h-screen sticky top-0 flex flex-col justify-between hidden md:flex select-none">
+    <aside
+      className={cn(
+        'border-r bg-card h-screen sticky top-0 flex flex-col justify-between hidden md:flex select-none transition-all duration-300 ease-in-out',
+        isCollapsed ? 'w-20' : 'w-64'
+      )}
+    >
       <div className="flex flex-col h-full overflow-hidden">
-        {/* Brand */}
-        <div className="h-16 flex items-center px-5 border-b gap-3 shrink-0 bg-background/50 backdrop-blur-sm">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white text-lg shadow-md shadow-orange-500/20 font-black">
-            🍽️
+        {/* Brand & Collapse Header */}
+        <div
+          className={cn(
+            'h-16 flex items-center border-b shrink-0 bg-background/50 backdrop-blur-sm transition-all',
+            isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+          )}
+        >
+          {/* Logo & Brand text */}
+          <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white text-lg shadow-md shadow-orange-500/20 font-black shrink-0">
+              🍽️
+            </div>
+            {!isCollapsed && (
+              <div className="min-w-0">
+                <h2 className="font-black text-sm tracking-tight leading-none text-foreground truncate">
+                  Gourmet Haven
+                </h2>
+                <p className="text-[10px] text-muted-foreground font-medium mt-1 tracking-wider uppercase truncate">
+                  Quản Trị Nhà Hàng
+                </p>
+              </div>
+            )}
           </div>
-          <div>
-            <h2 className="font-black text-sm tracking-tight leading-none text-foreground">Gourmet Haven</h2>
-            <p className="text-[10px] text-muted-foreground font-medium mt-1 tracking-wider uppercase">Hệ Thống Nhà Hàng Cao Cấp</p>
-          </div>
+
+          {/* Quick Collapse Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            title={isCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+            className={cn(
+              'text-muted-foreground hover:text-foreground hover:bg-muted p-1.5 rounded-lg transition-colors',
+              isCollapsed && 'mt-1'
+            )}
+          >
+            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
         </div>
 
         {/* Navigation Sections */}
-        <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
-          {navSections.map((section) => {
+        <nav className="flex-1 px-2.5 py-3 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
+          {navSections.map((section, idx) => {
             const visibleItems = section.items.filter(
               (item) => !item.roles || (user && item.roles.includes(user.role))
             );
@@ -146,10 +274,16 @@ export function AppSidebar() {
 
             return (
               <div key={section.title} className="space-y-1">
-                <div className="px-3 py-1 text-[10px] font-bold tracking-wider text-muted-foreground/70 uppercase">
-                  {section.title}
-                </div>
+                {/* Section Header */}
+                {!isCollapsed ? (
+                  <div className="px-2.5 py-1 text-[10px] font-bold tracking-wider text-muted-foreground/70 uppercase">
+                    {section.title}
+                  </div>
+                ) : (
+                  idx > 0 && <div className="h-px bg-border/60 my-2 mx-1" />
+                )}
 
+                {/* Section Items */}
                 <div className="space-y-0.5">
                   {visibleItems.map((item) => {
                     const Icon = item.icon;
@@ -159,22 +293,31 @@ export function AppSidebar() {
                       <NavLink
                         key={item.href}
                         to={item.href}
+                        title={isCollapsed ? `${item.name}${item.badge ? ` (${item.badge})` : ''}` : undefined}
                         className={cn(
-                          'group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150',
+                          'group flex items-center rounded-xl text-xs font-semibold transition-all duration-150',
+                          isCollapsed
+                            ? 'justify-center p-2.5'
+                            : 'justify-between px-3 py-2',
                           isActive
                             ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
                             : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                         )}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Icon className={cn('h-4 w-4 shrink-0 transition-transform group-hover:scale-110', isActive ? 'text-primary-foreground' : 'text-muted-foreground')} />
-                          <span className="truncate">{item.name}</span>
+                        <div className={cn('flex items-center min-w-0', isCollapsed ? 'justify-center' : 'gap-2.5')}>
+                          <Icon
+                            className={cn(
+                              'h-4 w-4 shrink-0 transition-transform group-hover:scale-110',
+                              isActive ? 'text-primary-foreground' : 'text-muted-foreground'
+                            )}
+                          />
+                          {!isCollapsed && <span className="truncate">{item.name}</span>}
                         </div>
 
-                        {item.badge && (
+                        {!isCollapsed && item.badge && (
                           <span
                             className={cn(
-                              'text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wider',
+                              'text-[10px] font-bold px-1.5 py-0.2 rounded-full shrink-0 tracking-wider',
                               isActive ? 'bg-white/20 text-white' : item.badgeColor
                             )}
                           >
@@ -192,13 +335,19 @@ export function AppSidebar() {
       </div>
 
       {/* Footer Info */}
-      <div className="p-3 border-t bg-muted/20 shrink-0">
-        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-          <span className="font-semibold text-foreground">Gourmet v2.5</span>
-          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span> DB Trực Tiếp
-          </span>
-        </div>
+      <div className={cn('p-2.5 border-t bg-muted/20 shrink-0 transition-all', isCollapsed && 'text-center')}>
+        {!isCollapsed ? (
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+            <span className="font-semibold text-foreground">Gourmet v2.5</span>
+            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span> DB Trực Tiếp
+            </span>
+          </div>
+        ) : (
+          <div className="flex justify-center" title="Trạng thái hệ thống: Kết nối MySQL Trực tiếp">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </div>
+        )}
       </div>
     </aside>
   );
