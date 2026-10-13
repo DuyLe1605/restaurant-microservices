@@ -37,8 +37,10 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
 
-            // Skip auth for OPTIONS preflight and open endpoints
-            if (org.springframework.http.HttpMethod.OPTIONS.equals(request.getMethod()) || isOpenEndpoint(path)) {
+            // Skip auth for OPTIONS preflight, open endpoints, and public GET menu endpoints
+            boolean isPublicGet = org.springframework.http.HttpMethod.GET.equals(request.getMethod())
+                    && (path.startsWith("/api/menu") || path.startsWith("/api/recipes"));
+            if (org.springframework.http.HttpMethod.OPTIONS.equals(request.getMethod()) || isOpenEndpoint(path) || isPublicGet) {
                 return chain.filter(exchange);
             }
 

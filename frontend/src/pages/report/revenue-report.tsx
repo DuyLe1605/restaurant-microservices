@@ -26,7 +26,10 @@ export function RevenueReportPage() {
   const [selectedDay, setSelectedDay] = React.useState<string | null>(null);
   const { data: dayOrders, isLoading: isDayLoading } = useDailyOrderDetails(selectedDay || '');
 
-  const details = report?.dailyDetails || (report as any)?.dailyBreakdown || [];
+  const details = React.useMemo(() => {
+    const raw = report?.dailyDetails || (report as any)?.dailyBreakdown || [];
+    return [...raw].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [report]);
   const totalRev = report?.totalRevenue || 0;
   const totalExp = report?.totalExpense || 0;
   const totalProf = report?.totalProfit ?? (report as any)?.netProfit ?? (totalRev - totalExp);
@@ -303,14 +306,14 @@ export function RevenueReportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {((report.dailyDetails || (report as any).dailyBreakdown || [])).length === 0 ? (
+                {details.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                       Không có phát sinh giao dịch trong khoảng thời gian này.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  (report.dailyDetails || (report as any).dailyBreakdown || []).map((d: any) => (
+                  details.map((d: any) => (
                     <TableRow key={d.date}>
                       <TableCell className="font-bold">{formatDate(d.date)}</TableCell>
                       <TableCell>{d.orderCount} đơn</TableCell>

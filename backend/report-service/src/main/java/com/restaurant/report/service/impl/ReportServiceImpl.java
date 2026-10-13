@@ -75,7 +75,8 @@ public class ReportServiceImpl implements ReportService {
             expMap.merge(e.getExpenseDate(), e.getAmount(), BigDecimal::add);
         }
 
-        Set<LocalDate> allDates = new TreeSet<>(revMap.keySet());
+        Set<LocalDate> allDates = new TreeSet<>(Collections.reverseOrder());
+        allDates.addAll(revMap.keySet());
         allDates.addAll(expMap.keySet());
 
         BigDecimal totalRevenue = BigDecimal.ZERO;

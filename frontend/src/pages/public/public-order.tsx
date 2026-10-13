@@ -8,7 +8,7 @@ import { formatVND } from '@/lib/format-currency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { cn, smartIncludes } from '@/lib/utils';
 import { useCreateServiceRequest } from '@/hooks/use-service-requests';
 import { ServiceRequestType } from '@/api/service-request.api';
 import {
@@ -145,9 +145,9 @@ export function PublicOrderPage() {
     return allMenuItems.filter((item) => {
       const matchSearch =
         !searchQuery ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
+        smartIncludes(item.name, searchQuery) ||
+        smartIncludes(item.code, searchQuery) ||
+        smartIncludes(item.description, searchQuery);
       const matchCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
       return matchSearch && matchCategory;
     });
