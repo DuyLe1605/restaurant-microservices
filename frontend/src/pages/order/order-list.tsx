@@ -19,7 +19,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
 import { orderApi } from '@/api/order.api';
-import { cn } from '@/lib/utils';
+import { cn, smartIncludes } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ExportDropdown } from '@/components/shared/export-dropdown';
 import { useCustomerLookup, useRegisterCustomer } from '@/hooks/use-customers';
@@ -251,8 +251,8 @@ export function OrderListPage() {
       const matchSearch =
         !search ||
         (order.id && String(order.id).includes(search)) ||
-        (order.tableNumber && order.tableNumber.toLowerCase().includes(search.toLowerCase())) ||
-        (order.customerName && order.customerName.toLowerCase().includes(search.toLowerCase()));
+        smartIncludes(order.tableNumber, search) ||
+        smartIncludes(order.customerName, search);
 
       const matchStatus = !statusFilter || order.status === statusFilter;
 

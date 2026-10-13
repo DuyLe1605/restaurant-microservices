@@ -17,19 +17,27 @@ import { ReceiptDetail, InventoryReceipt } from '@/types/inventory';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ExportDropdown } from '@/components/shared/export-dropdown';
+import { smartIncludes } from '@/lib/utils';
 
 export function ReceiptListPage() {
   const [page, setPage] = React.useState(0);
-  const { data, isLoading } = useReceipts({ page, size: 50 });
-  const { data: ingData } = useIngredients({ size: 100 });
-  const createMutation = useCreateReceipt();
-  const completeMutation = useCompleteReceipt();
-
   // Date Filter & Criteria
   const [startDate, setStartDate] = React.useState('');
   const [endDate, setEndDate] = React.useState('');
   const [supplierFilter, setSupplierFilter] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<ReceiptStatus | ''>('');
+
+  const { data, isLoading } = useReceipts({
+    page,
+    size: 50,
+    supplier: supplierFilter || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    status: (statusFilter as ReceiptStatus) || undefined,
+  });
+  const { data: ingData } = useIngredients({ size: 100 });
+  const createMutation = useCreateReceipt();
+  const completeMutation = useCompleteReceipt();
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [viewReceipt, setViewReceipt] = React.useState<InventoryReceipt | null>(null);
@@ -69,13 +77,18 @@ export function ReceiptListPage() {
 
   const rawReceipts: InventoryReceipt[] = data?.content || [];
   const filteredReceipts = React.useMemo(() => {
-    return rawReceipts.filter((r) => {
-      const matchStart = !startDate || r.receiptDate >= startDate;
-      const matchEnd = !endDate || r.receiptDate <= endDate;
-      const matchSupplier = !supplierFilter || (r.supplier && r.supplier.toLowerCase().includes(supplierFilter.toLowerCase()));
-      const matchStatus = !statusFilter || r.status === statusFilter;
-      return matchStart && matchEnd && matchSupplier && matchStatus;
-    });
+    return rawReceipts
+      .filter((r) => {
+        const matchStart = !startDate || r.receiptDate >= startDate;
+        const matchEnd = !endDate || r.receiptDate <= endDate;
+        const matchSupplier = !supplierFilter || smartIncludes(r.supplier, supplierFilter);
+        const matchStatus = !statusFilter || r.status === statusFilter;
+        return matchStart && matchEnd && matchSupplier && matchStatus;
+      })
+      .sort((a, b) => {
+        const dateDiff = new Date(b.receiptDate).getTime() - new Date(a.receiptDate).getTime();
+        return dateDiff !== 0 ? dateDiff : (b.id || 0) - (a.id || 0);
+      });
   }, [rawReceipts, startDate, endDate, supplierFilter, statusFilter]);
 
   const datePeriodLabel = React.useMemo(() => {

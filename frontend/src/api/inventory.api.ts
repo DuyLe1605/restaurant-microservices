@@ -4,6 +4,9 @@ import { InventoryReceipt, InventoryIssue, StockAdjustment, ReceiptStatus } from
 
 export interface ReceiptQueryParams extends PaginationParams {
   status?: ReceiptStatus;
+  supplier?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const inventoryApi = {

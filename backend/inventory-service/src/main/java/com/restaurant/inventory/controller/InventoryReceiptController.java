@@ -22,16 +22,20 @@ public class InventoryReceiptController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ReceiptResponse>>> getReceipts(
             @RequestParam(required = false) ReceiptStatus status,
+            @RequestParam(required = false) String supplier,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "receiptDate") String sortBy,
             @RequestParam(defaultValue = "desc") String direction) {
 
         Sort sort = direction.equalsIgnoreCase(Sort.Direction.ASC.name()) ?
-                Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+                Sort.by(sortBy).ascending().and(Sort.by("id").ascending()) :
+                Sort.by(sortBy).descending().and(Sort.by("id").descending());
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        PageResponse<ReceiptResponse> response = receiptService.getReceipts(status, pageable);
+        PageResponse<ReceiptResponse> response = receiptService.getReceipts(status, supplier, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.ok(response, "Fetched receipts"));
     }
 
