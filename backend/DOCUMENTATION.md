@@ -105,30 +105,52 @@ Hệ thống Backend được thiết kế theo chuẩn **Kiến trúc Hướng 
 - `GET /api/public-order/start?token=:token`: API công khai cho khách quét QR xem thực đơn tại bàn.
 - `POST /api/public-order/submit`: Khách gửi đơn đặt món tự phục vụ từ điện thoại.
 
-### 3.4. Bán Hàng & Màn Hình Bếp KDS (`order-service`)
+### 3.4. Bán Hàng, Tách Đơn & Màn Hình Bếp KDS (`order-service`)
 - `GET /api/orders`: Lấy sổ danh sách đơn hàng (lọc theo trạng thái `OPEN`, `PAID`, `CANCEL`).
-- `POST /api/orders`: Mở đơn hàng mới tại quầy POS.
+- `POST /api/orders`: Mở đơn hàng mới tại quầy POS, hỗ trợ phân loại Khách Vãng Lai và Khách Thành Viên tích điểm.
 - `POST /api/orders/:id/add-items`: Gọi thêm món vào đơn hàng đang mở.
-- `POST /api/orders/:id/split`: **Tách đơn hàng độc lập**: Hỗ trợ đầy đủ thông tin khách hàng mới (`customerName`, `customerPhone`), chiết khấu trực tiếp (`discount`), thuế suất VAT (`vatRate`), ghi chú đơn (`note`), và danh sách món tách (`items`). Tự động trừ số lượng khỏi đơn gốc và tạo đơn mới trong một giao dịch CSDL nguyên tử.
+- `POST /api/orders/:id/split`: **Tách đơn hàng độc lập**: Hỗ trợ đầy đủ thông tin khách hàng mới (`customerName`, `customerPhone`), tra cứu/áp dụng ưu đãi hội viên, chiết khấu trực tiếp (`discount`), thuế suất VAT (`vatRate`), ghi chú đơn (`note`), và danh sách món tách (`items`). Tự động trừ số lượng khỏi đơn gốc và tạo đơn mới trong một giao dịch CSDL nguyên tử.
 - `PUT /api/orders/:orderId/items/:itemId/status`: **KDS Endpoint**: Cập nhật trạng thái chế biến của từng món ăn (`ORDERED` -> `COOKING` -> `COOKED` -> `SERVED`).
 - `PUT /api/orders/:orderId/items/status`: **KDS Bulk Endpoint**: Cập nhật hàng loạt toàn bộ vé ("Nấu tất cả", "Nấu xong hết", "Ra món hết").
 - `POST /api/orders/:id/complete`: Hoàn thành phục vụ đơn hàng (`SERVED`), tự động gửi event trừ tồn kho nguyên liệu theo định mức.
 - `GET /api/orders/:id/invoice`: Trích xuất hóa đơn thanh toán chi tiết kèm bảng tính thuế VAT, giảm giá và thông tin nhà hàng.
-- `POST /api/orders/:id/pay`: Thanh toán đơn hàng (`PAID`), đổi trạng thái bàn về `FREE`.
+- `POST /api/orders/:id/pay`: Thanh toán đơn hàng (`PAID`), giải phóng bàn ăn về `FREE`, và tự động **tích điểm thưởng & đánh giá duy trì/nâng hạng hội viên** theo doanh số tháng.
 - `POST /api/orders/:id/cancel`: Hủy đơn hàng và giải phóng bàn ăn.
 
-### 3.5. Kho & Nguyên Liệu (`inventory-service`)
+### 3.5. Hệ Thống Khách Hàng & Hội Viên Tích Điểm (`Customer Loyalty System`)
+Hệ thống tài khoản khách hàng lưu trữ bằng Tên và Số điện thoại độc nhất, tích hợp trực tiếp vào quy trình bán hàng và thanh toán:
+- `GET /api/customers`: Lấy danh sách hội viên phân trang (hỗ trợ lọc từ khóa tên/SĐT và phân loại hạng thẻ).
+- `GET /api/customers/lookup?phone=:phone`: Tra cứu nhanh hồ sơ hội viên theo số điện thoại (trả về điểm khả dụng, hạng thẻ, mức chiết khấu, và tiến độ chi tiêu trong tháng).
+- `POST /api/customers`: Đăng ký tài khoản hội viên mới hoặc cập nhật hồ sơ khách hàng.
+- `PUT /api/customers/:id`: Cập nhật thông tin liên hệ, ghi chú khách hàng.
+
+#### Quy chế Tích điểm & Xếp hạng Hội viên theo Tháng:
+- **Tỷ lệ quy đổi điểm**: `10.000 VNĐ = 1 điểm` (tương đương hoàn tiền 1%).
+- **Giá trị điểm thưởng**: `1 điểm = 100 VNĐ`, cho phép cấn trừ trực tiếp khi thanh toán đơn hàng.
+- **Phân hạng thẻ & Điều kiện duy trì / nâng hạng tháng**:
+  - 🥉 **Hạng Đồng (BRONZE)**: Mặc định khi đăng ký mới / Chi tiêu tháng `< 2.000.000 VNĐ` (Chiết khấu `0%`, Hệ số điểm `1.0x`).
+  - 🥈 **Hạng Bạc (SILVER)**: Đạt chỉ tiêu chi tiêu tháng `>= 2.000.000 VNĐ` (Chiết khấu `5%`, Hệ số điểm `1.2x`).
+  - 🥇 **Hạng Vàng (GOLD)**: Đạt chỉ tiêu chi tiêu tháng `>= 5.000.000 VNĐ` (Chiết khấu `10%`, Hệ số điểm `1.5x`).
+  - 💎 **Hạng Kim Cương (DIAMOND)**: Đạt chỉ tiêu chi tiêu tháng `>= 10.000.000 VNĐ` (Chiết khấu `15%`, Hệ số điểm `2.0x`).
+- **Cơ chế chu kỳ tháng**: Doanh số tích lũy tháng (`currentMonthSpent`) được tự động kiểm tra và làm mới theo chu kỳ tháng (`YYYY-MM`), giúp đánh giá duy trì hoặc thăng hạng khách hàng chính xác theo tháng mà không bị mất điểm thưởng tích lũy lâu dài.
+
+### 3.6. Kho & Nguyên Liệu (`inventory-service`)
 - `GET /api/ingredients`: Danh sách nguyên liệu tồn kho, đơn vị tính và giá vốn nhập trung bình.
 - `POST /api/ingredients`: Thêm nguyên liệu kho mới.
 - `PUT /api/ingredients/:id`: Cập nhật ngưỡng tồn kho an toàn (min stock).
-- `GET /api/inventory/receipts`: Danh sách phiếu nhập kho từ nhà cung cấp.
+- `GET /api/inventory/receipts`: Danh sách phiếu nhập kho từ nhà cung cấp (hỗ trợ xem chi tiết mặt hàng trong cột thao tác).
 - `POST /api/inventory/receipts`: Tạo phiếu nhập kho và tự động cộng dồn số lượng tồn.
+- `GET /api/inventory/issues`: Danh sách phiếu xuất kho chế biến / hủy hỏng.
 
-### 3.6. Báo Cáo Tài Chính & Phân Tích (`report-service`)
+### 3.7. Báo Cáo Tài Chính, Xuất Excel & In Ấn A4 (`report-service`)
 - `GET /api/dashboard`: Tổng hợp số liệu KPI bán hàng trong ngày (doanh thu, lợi nhuận, đơn hàng, cảnh báo kho).
 - `GET /api/reports/revenue`: Báo cáo doanh thu, chi phí vận hành và lợi nhuận ròng tổng hợp theo ngày.
 - `GET /api/reports/revenue/:day`: Drill-down chi tiết danh sách đơn hàng phát sinh trong một ngày cụ thể.
 - `GET /api/reports/stock`: Báo cáo phân tầng mức độ an toàn của tồn kho (`CRITICAL`, `WARNING`, `NORMAL`).
+- **Tính năng Xuất Báo Cáo Cao Cấp**:
+  - **Excel Xuất Bản**: Xuất dữ liệu đa cột có tiêu đề thương hiệu nhà hàng, định dạng tiền tệ Việt Nam (VNĐ), viền bảng và tổng cộng tự động.
+  - **In Biên Bản A4 Chuẩn Nghiệp Vụ**: Hỗ trợ in mẫu biểu A4 chuẩn hoá với logo nhà hàng, thời gian in, bảng chi tiết và các ô ký duyệt (Người lập biểu, Kế toán trưởng, Giám đốc / Quản lý).
+  - **Tối ưu Giao diện Bảng**: Thu gọn toàn bộ nút thao tác vào trong Menu Thao tác (Dropdown Action Menu) giúp bảng biểu thông thoáng, hiện đại.
 
 ---
 

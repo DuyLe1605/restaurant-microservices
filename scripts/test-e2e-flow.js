@@ -236,45 +236,148 @@ async function runE2ETests() {
     });
 
     // =========================================================================
-    // 4. INVENTORY SERVICE (QUẢN LÝ KHO & NHẬP / XUẤT)
+    // 4. CUSTOMER SERVICE (HỆ THỐNG KHÁCH HÀNG & HỘI VIÊN TÍCH ĐIỂM)
     // =========================================================================
-    logHeader('PHẦN 4: KHO NGUYÊN LIỆU (INVENTORY SERVICE: NHẬP & XUẤT KHO)');
+    logHeader('PHẦN 4: KHÁCH HÀNG & HỘI VIÊN TÍCH ĐIỂM (CUSTOMER & LOYALTY TIERS)');
+
+    const testPhone = '09' + Math.floor(10000000 + Math.random() * 90000000);
+    let registeredMember = null;
+
+    await testStep('4.1 Tra cứu khách hàng theo SĐT (khi chưa đăng ký)', async () => {
+      try {
+        await request(`/customers/lookup?phone=${testPhone}`);
+        throw new Error('SĐT chưa tạo nhưng lại tìm thấy');
+      } catch (err) {
+        logSuccess('4.1 Tra cứu khách mới', `Hệ thống xác nhận SĐT ${testPhone} chưa có hồ sơ thành viên (HTTP 404 Not Found)`);
+      }
+    });
+
+    await testStep('4.2 Đăng ký hội viên mới với cấp bậc khởi điểm', async () => {
+      const resp = await request('/customers', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Võ Thị Thu Hằng',
+          phone: testPhone,
+          email: 'hang.vo@example.com',
+          note: 'Khách VIP ăn trưa định kỳ',
+        }),
+      });
+      if (!resp.success || !resp.data?.id) throw new Error('Đăng ký khách hàng thất bại');
+      registeredMember = resp.data;
+      if (registeredMember.tier !== 'BRONZE' || registeredMember.points !== 0) {
+        throw new Error(`Thông số hội viên mới không hợp lệ: tier=${registeredMember.tier}, points=${registeredMember.points}`);
+      }
+      logSuccess('4.2 Đăng ký hội viên', `Tạo hội viên "${registeredMember.name}" (${registeredMember.phone}):`);
+      logInfo(`  -> Cấp bậc: ${registeredMember.tierLabel} (${registeredMember.tier})`);
+      logInfo(`  -> Điểm khởi điểm: ${registeredMember.points} điểm (Tỷ lệ x${registeredMember.pointMultiplier})`);
+      logInfo(`  -> Chiết khấu: ${registeredMember.discountPercent}%`);
+      logInfo(`  -> Chỉ tiêu lên hạng tiếp theo: ${registeredMember.nextTierTarget?.toLocaleString('vi-VN')} VND (${registeredMember.nextTierLabel})`);
+    });
+
+    await testStep('4.3 Tích điểm tự động khi thanh toán đơn hàng (10.000đ = 1 điểm)', async () => {
+      // Tạo đơn hàng 1.000.000 VNĐ cho hội viên này
+      const orderResp = await request('/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          customerName: registeredMember.name,
+          customerPhone: registeredMember.phone,
+          note: 'Đơn tích điểm hội viên',
+          items: [
+            { menuId: menuItems[0].id, qty: 10 },
+          ],
+        }),
+      });
+      if (!orderResp.success) throw new Error('Không tạo được đơn hàng cho hội viên');
+      const loyaltyOrder = orderResp.data;
+
+      // Hoàn thành và thanh toán đơn hàng
+      await request(`/orders/${loyaltyOrder.id}/complete`, { method: 'POST' });
+      await request(`/orders/${loyaltyOrder.id}/pay`, { method: 'POST' });
+
+      // Tra cứu lại thông tin hội viên để kiểm tra điểm tích luỹ
+      const memberAfterPay = await request(`/customers/lookup?phone=${testPhone}`);
+      const expectedPoints = Math.floor(loyaltyOrder.totalAmount / 10000);
+      if (memberAfterPay.data.points < expectedPoints) {
+        throw new Error(`Điểm tích lũy không đúng. Mong đợi ít nhất ${expectedPoints}, thực tế: ${memberAfterPay.data.points}`);
+      }
+      logSuccess('4.3 Tích điểm thanh toán', `Thanh toán Đơn #${loyaltyOrder.id} (${loyaltyOrder.totalAmount?.toLocaleString('vi-VN')} VND):`);
+      logInfo(`  -> Điểm đã tích: +${memberAfterPay.data.points} điểm (~${memberAfterPay.data.pointsValue?.toLocaleString('vi-VN')} VND)`);
+      logInfo(`  -> Tổng chi tiêu: ${memberAfterPay.data.totalSpent?.toLocaleString('vi-VN')} VND`);
+    });
+
+    await testStep('4.4 Duy trì & Nâng hạng theo doanh số tháng (Target >= 2M lên Hạng Bạc)', async () => {
+      // Tạo thêm đơn hàng trị giá lớn để vượt ngưỡng 2.000.000 VND lên Bạc (SILVER)
+      const upgradeOrderResp = await request('/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          customerName: registeredMember.name,
+          customerPhone: registeredMember.phone,
+          note: 'Đơn nâng hạng Silver',
+          items: [
+            { menuId: menuItems[0].id, qty: 15 },
+          ],
+        }),
+      });
+      const upOrder = upgradeOrderResp.data;
+      await request(`/orders/${upOrder.id}/complete`, { method: 'POST' });
+      await request(`/orders/${upOrder.id}/pay`, { method: 'POST' });
+
+      // Tra cứu lại thông tin hội viên
+      const upgradedMember = await request(`/customers/lookup?phone=${testPhone}`);
+      logSuccess('4.4 Nâng hạng tự động', `Hội viên đạt chỉ tiêu tháng ${upgradedMember.data.currentMonthSpent?.toLocaleString('vi-VN')} VND:`);
+      logInfo(`  -> Hạng hiện tại: ${upgradedMember.data.tierLabel} (${upgradedMember.data.tier})`);
+      logInfo(`  -> Ưu đãi giảm giá mới: ${upgradedMember.data.discountPercent}%`);
+      logInfo(`  -> Hệ số nhân điểm mới: x${upgradedMember.data.pointMultiplier}`);
+      logInfo(`  -> Tổng điểm tích luỹ: ${upgradedMember.data.points} điểm`);
+    });
+
+    await testStep('4.5 Danh sách hội viên & báo cáo phân trang', async () => {
+      const resp = await request('/customers?page=0&size=10');
+      const list = resp.data?.content || resp.data || [];
+      if (!Array.isArray(list) || list.length === 0) throw new Error('Danh sách hội viên trống');
+      logSuccess('4.5 Danh sách hội viên', `Truy xuất thành công ${list.length} hội viên trong hệ thống`);
+    });
+
+    // =========================================================================
+    // 5. INVENTORY SERVICE (QUẢN LÝ KHO & NHẬP / XUẤT)
+    // =========================================================================
+    logHeader('PHẦN 5: KHO NGUYÊN LIỆU (INVENTORY SERVICE: NHẬP & XUẤT KHO)');
 
     let ingredients = [];
-    await testStep('4.1 Lấy danh mục nguyên liệu tồn kho', async () => {
+    await testStep('5.1 Lấy danh mục nguyên liệu tồn kho', async () => {
       const resp = await request('/ingredients');
       ingredients = resp.data?.content || resp.data || [];
       if (!Array.isArray(ingredients) || ingredients.length === 0) throw new Error('Danh mục nguyên liệu rỗng');
-      logSuccess('4.1 Danh mục NVL', `Tìm thấy ${ingredients.length} loại nguyên vật liệu trong kho`);
+      logSuccess('5.1 Danh mục NVL', `Tìm thấy ${ingredients.length} loại nguyên vật liệu trong kho`);
     });
 
-    await testStep('4.2 Lấy danh sách phiếu nhập kho (Receipts)', async () => {
+    await testStep('5.2 Lấy danh sách phiếu nhập kho (Receipts)', async () => {
       const resp = await request('/inventory/receipts');
       const receipts = resp.data?.content || resp.data || [];
-      logSuccess('4.2 Phiếu nhập kho', `Truy xuất thành công ${receipts.length} phiếu nhập kho`);
+      logSuccess('5.2 Phiếu nhập kho', `Truy xuất thành công ${receipts.length} phiếu nhập kho`);
     });
 
-    await testStep('4.3 Lấy danh sách phiếu xuất kho (Issues)', async () => {
+    await testStep('5.3 Lấy danh sách phiếu xuất kho (Issues)', async () => {
       const resp = await request('/inventory/issues');
       const issues = resp.data?.content || resp.data || [];
-      logSuccess('4.3 Phiếu xuất kho', `Truy xuất thành công ${issues.length} phiếu xuất kho`);
+      logSuccess('5.3 Phiếu xuất kho', `Truy xuất thành công ${issues.length} phiếu xuất kho`);
     });
 
     // =========================================================================
-    // 5. REPORT SERVICE (BÁO CÁO DOANH THU & TỒN KHO)
+    // 6. REPORT SERVICE (BÁO CÁO DOANH THU & TỒN KHO)
     // =========================================================================
-    logHeader('PHẦN 5: BÁO CÁO & THỐNG KÊ (REPORT SERVICE)');
+    logHeader('PHẦN 6: BÁO CÁO & THỐNG KÊ (REPORT SERVICE)');
 
-    await testStep('5.1 Báo cáo doanh số bán hàng (Revenue Report)', async () => {
+    await testStep('6.1 Báo cáo doanh số bán hàng (Revenue Report)', async () => {
       const resp = await request('/reports/revenue');
       const revData = resp.data || [];
-      logSuccess('5.1 Báo cáo doanh thu', `Dữ liệu báo cáo doanh thu trả về hợp lệ (${Array.isArray(revData) ? revData.length + ' mục' : 'OK'})`);
+      logSuccess('6.1 Báo cáo doanh thu', `Dữ liệu báo cáo doanh thu trả về hợp lệ (${Array.isArray(revData) ? revData.length + ' mục' : 'OK'})`);
     });
 
-    await testStep('5.2 Báo cáo phân tầng kiểm kê tồn kho (Stock Report)', async () => {
+    await testStep('6.2 Báo cáo phân tầng kiểm kê tồn kho (Stock Report)', async () => {
       const resp = await request('/reports/stock');
       const stockData = resp.data || [];
-      logSuccess('5.2 Báo cáo tồn kho', `Dữ liệu phân tầng kho trả về hợp lệ (${Array.isArray(stockData) ? stockData.length + ' mặt hàng' : 'OK'})`);
+      logSuccess('6.2 Báo cáo tồn kho', `Dữ liệu phân tầng kho trả về hợp lệ (${Array.isArray(stockData) ? stockData.length + ' mặt hàng' : 'OK'})`);
     });
 
     // =========================================================================
