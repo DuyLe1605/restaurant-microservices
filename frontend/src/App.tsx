@@ -44,6 +44,7 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/public/order" element={<PublicOrderPage />} />
+      <Route path="/public-order" element={<PublicOrderPage />} />
 
       {/* Protected Layout Routes */}
       <Route element={<ProtectedRoute />}>
