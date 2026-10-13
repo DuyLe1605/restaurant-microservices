@@ -60,6 +60,22 @@ public class TableController {
         return ResponseEntity.ok(ApiResponse.ok(response, "Table status updated"));
     }
 
+    @PostMapping("/{id}/transfer")
+    public ResponseEntity<ApiResponse<TableResponse>> transferTable(
+            @PathVariable Long id,
+            @RequestBody com.restaurant.table.dto.TableTransferRequest request) {
+        TableResponse response = tableService.transferTable(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(response, "Chuyển bàn thành công"));
+    }
+
+    @PostMapping("/{id}/merge")
+    public ResponseEntity<ApiResponse<TableResponse>> mergeTables(
+            @PathVariable Long id,
+            @RequestBody com.restaurant.table.dto.TableMergeRequest request) {
+        TableResponse response = tableService.mergeTables(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(response, "Ghép bàn thành công"));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTable(@PathVariable Long id) {
         tableService.deleteTable(id);

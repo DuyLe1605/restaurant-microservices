@@ -100,6 +100,51 @@ public class TableServiceImpl implements TableService {
 
     @Override
     @Transactional
+    public TableResponse transferTable(Long sourceId, com.restaurant.table.dto.TableTransferRequest request) {
+        RestaurantTable sourceTable = tableRepository.findById(sourceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bàn nguồn không tồn tại: #" + sourceId));
+
+        if (request.getTargetTableId() == null) {
+            throw new com.restaurant.table.exception.BadRequestException("Vui lòng chọn bàn đích để chuyển sang!");
+        }
+
+        RestaurantTable targetTable = tableRepository.findById(request.getTargetTableId())
+                .orElseThrow(() -> new ResourceNotFoundException("Bàn đích không tồn tại: #" + request.getTargetTableId()));
+
+        // Chuyển bàn: Bàn nguồn giải phóng về FREE, bàn đích chuyển sang OCCUPIED
+        sourceTable.setStatus(TableStatus.FREE);
+        targetTable.setStatus(TableStatus.OCCUPIED);
+
+        tableRepository.save(sourceTable);
+        RestaurantTable savedTarget = tableRepository.save(targetTable);
+        return mapToResponse(savedTarget);
+    }
+
+    @Override
+    @Transactional
+    public TableResponse mergeTables(Long primaryId, com.restaurant.table.dto.TableMergeRequest request) {
+        RestaurantTable primaryTable = tableRepository.findById(primaryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bàn chính không tồn tại: #" + primaryId));
+
+        primaryTable.setStatus(TableStatus.OCCUPIED);
+        RestaurantTable savedPrimary = tableRepository.save(primaryTable);
+
+        if (request.getMergedTableIds() != null) {
+            for (Long mergedId : request.getMergedTableIds()) {
+                if (!mergedId.equals(primaryId)) {
+                    tableRepository.findById(mergedId).ifPresent(tbl -> {
+                        tbl.setStatus(TableStatus.FREE);
+                        tableRepository.save(tbl);
+                    });
+                }
+            }
+        }
+
+        return mapToResponse(savedPrimary);
+    }
+
+    @Override
+    @Transactional
     public void deleteTable(Long id) {
         if (!tableRepository.existsById(id)) {
             throw new ResourceNotFoundException(TableConstants.MSG_TABLE_NOT_FOUND + id);

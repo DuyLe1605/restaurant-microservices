@@ -10,6 +10,7 @@ import {
   useMergeTables,
 } from '@/hooks/use-tables';
 import { useOrders } from '@/hooks/use-orders';
+import { orderApi } from '@/api/order.api';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
 import { LoadingSpinner } from '@/components/shared/loading-spinner';
@@ -163,6 +164,8 @@ export function TableListPage() {
     const target = rawTables.find((t) => t.id === moveTargetId);
     if (!target) return;
 
+    const sourceOrder = openOrdersByTable.get(moveModalTable.id);
+
     transferMutation.mutate(
       {
         sourceId: moveModalTable.id,
@@ -170,7 +173,14 @@ export function TableListPage() {
         reason: moveReason,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          if (sourceOrder) {
+            try {
+              await orderApi.update(sourceOrder.id, { tableId: moveTargetId });
+            } catch (err) {
+              console.warn('Sync order tableId failed:', err);
+            }
+          }
           setMoveModalTable(null);
           setMoveTargetId(0);
           setMoveReason('');
@@ -181,13 +191,39 @@ export function TableListPage() {
 
   const handleConfirmMerge = () => {
     if (!mergeModalTable || !mergeTargetId) return;
+
+    const sourceOrder = openOrdersByTable.get(mergeModalTable.id);
+    const targetOrder = openOrdersByTable.get(mergeTargetId);
+
     mergeMutation.mutate(
       {
         primaryId: mergeTargetId,
         mergedTableIds: [mergeModalTable.id],
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          if (sourceOrder) {
+            try {
+              if (targetOrder && sourceOrder.items && sourceOrder.items.length > 0) {
+                // Thêm các món từ bàn phụ vào bàn chính
+                await orderApi.addItems(
+                  targetOrder.id,
+                  sourceOrder.items.map((it) => ({
+                    menuId: it.menuId,
+                    qty: it.qty,
+                    note: it.note ? `[Gộp từ bàn ${mergeModalTable.number}]: ${it.note}` : `[Gộp từ bàn ${mergeModalTable.number}]`,
+                  }))
+                );
+                // Đóng đơn của bàn phụ
+                await orderApi.cancel(sourceOrder.id);
+              } else if (!targetOrder) {
+                // Nếu bàn đích chưa có đơn thì chuyển đơn hiện tại sang bàn đích
+                await orderApi.update(sourceOrder.id, { tableId: mergeTargetId });
+              }
+            } catch (err) {
+              console.warn('Sync merge order failed:', err);
+            }
+          }
           setMergeModalTable(null);
           setMergeTargetId(0);
         },
@@ -278,7 +314,11 @@ export function TableListPage() {
 
                 {/* LIVE ORDER PREVIEW ON OCCUPIED TABLES */}
                 {isOccupied && activeOrder && (
-                  <div className="mb-4 p-3 bg-white dark:bg-card rounded-xl border border-rose-200 dark:border-rose-900/50 shadow-sm space-y-2">
+                  <div
+                    onClick={() => navigate(`/orders?orderId=${activeOrder.id}&tableId=${t.id}`)}
+                    className="mb-4 p-3 bg-white dark:bg-card rounded-xl border border-rose-200 dark:border-rose-900/50 shadow-sm space-y-2 cursor-pointer hover:border-primary/60 hover:shadow-sm transition-all"
+                    title="Bấm để mở chi tiết đơn hàng này"
+                  >
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
                         <Receipt className="h-3.5 w-3.5" />
@@ -375,7 +415,7 @@ export function TableListPage() {
                       <Button
                         size="sm"
                         className="w-full text-xs font-bold h-8 bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
-                        onClick={() => navigate(`/orders?tableId=${t.id}`)}
+                        onClick={() => navigate(`/orders?orderId=${activeOrder.id}&tableId=${t.id}`)}
                       >
                         <Receipt className="h-3.5 w-3.5" /> Xem Đơn #{activeOrder.id} ({formatVND(activeOrder.totalAmount)})
                       </Button>
