@@ -84,6 +84,15 @@ Hệ thống thiết lập cơ chế phân quyền ma trận 3 vai trò chính t
      5. Báo cáo thống kê: Doanh thu bán hàng & Phân tầng an toàn tồn kho.
    - Lệnh chạy kiểm thử: `node scripts/test-e2e-flow.js` (Kết quả: Đạt 17/17 bước thành công 100%).
 
+5. **Tự Động Hạch Toán Chi Phí Từ Nhập Kho (Inventory -> Order -> Report)**:
+   - Khi hoàn tất phiếu nhập kho (`InventoryReceipt` sang `COMPLETED`), `inventory-service` tự động tính tổng tiền `∑ (qty * unitPrice)` và gọi Feign client sang `order-service` sinh phiếu chi loại `MUA_NGUYEN_LIEU`.
+   - `order-service` phát sự kiện RabbitMQ `expense.created` sang `report-service` để cập nhật ngay chi phí vận hành và lợi nhuận ròng của ngày đó.
+
+6. **Tìm Kiếm Thông Minh Không Dấu & Sắp Xếp Ngày Mới Nhất**:
+   - **Tìm kiếm không dấu**: Hỗ trợ tìm kiếm theo nhà cung cấp, mã món, tên món... không phân biệt dấu tiếng Việt (ví dụ: gõ `thuc pham sach` tìm được `Công ty TNHH Thực Phẩm Sạch`) trên cả Backend (MySQL `utf8mb4_unicode_ci`) và Frontend (`smartIncludes`).
+   - **Sắp xếp mặc định ngày mới nhất**: Báo cáo doanh thu & danh sách phiếu nhập kho sắp xếp theo thứ tự giảm dần (`DESC`) từ Backend Service & Database.
+   - **Mở quyền Public xem thực đơn QR**: Gateway cho phép khách hàng quét mã QR xem thực đơn (`GET /api/menu`) không cần token xác thực.
+
 ---
 
 ## 5. Tự Động Hóa Vận Hành DevOps

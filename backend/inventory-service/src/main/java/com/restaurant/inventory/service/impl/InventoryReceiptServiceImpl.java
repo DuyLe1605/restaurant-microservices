@@ -7,10 +7,13 @@ import com.restaurant.inventory.enums.InventoryLogType;
 import com.restaurant.inventory.enums.ReceiptStatus;
 import com.restaurant.inventory.exception.BadRequestException;
 import com.restaurant.inventory.exception.ResourceNotFoundException;
+import com.restaurant.inventory.client.ExpenseCreateDto;
+import com.restaurant.inventory.client.OrderExpenseClient;
 import com.restaurant.inventory.messaging.InventoryEventPublisher;
 import com.restaurant.inventory.repository.*;
 import com.restaurant.inventory.service.InventoryReceiptService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
     private final InventoryReceiptRepository receiptRepository;
@@ -29,12 +33,18 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     private final InventoryLogRepository logRepository;
     private final IngredientRepository ingredientRepository;
     private final InventoryEventPublisher eventPublisher;
+    private final OrderExpenseClient orderExpenseClient;
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ReceiptResponse> getReceipts(ReceiptStatus status, Pageable pageable) {
-        Page<InventoryReceipt> page = (status != null) ?
-                receiptRepository.findByStatus(status, pageable) : receiptRepository.findAll(pageable);
+        return getReceipts(status, null, null, null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ReceiptResponse> getReceipts(ReceiptStatus status, String supplier, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        Page<InventoryReceipt> page = receiptRepository.findFiltered(status, supplier, startDate, endDate, pageable);
 
         List<ReceiptResponse> content = page.getContent().stream()
                 .map(this::mapToResponse)
@@ -140,7 +150,12 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
         List<InventoryReceiptDetail> details = detailRepository.findByReceiptId(id);
 
+        BigDecimal totalAmount = BigDecimal.ZERO;
         for (InventoryReceiptDetail d : details) {
+            BigDecimal qty = d.getQty() != null ? d.getQty() : BigDecimal.ZERO;
+            BigDecimal price = d.getUnitPrice() != null ? d.getUnitPrice() : BigDecimal.ZERO;
+            totalAmount = totalAmount.add(qty.multiply(price));
+
             // Add to InventoryLog (+qty)
             InventoryLog invLog = InventoryLog.builder()
                     .ingredientId(d.getIngredientId())
@@ -172,6 +187,23 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
         receipt.setStatus(ReceiptStatus.COMPLETED);
         receiptRepository.save(receipt);
+
+        // Tự động hạch toán chi phí sang order-service & report-service nếu có giá trị
+        if (totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                String supplierName = receipt.getSupplier() != null ? receipt.getSupplier() : "N/A";
+                orderExpenseClient.createExpense(ExpenseCreateDto.builder()
+                        .expenseType("MUA_NGUYEN_LIEU")
+                        .amount(totalAmount)
+                        .description("Chi tiền nhập kho PNK-#" + receipt.getId() + " - NCC: " + supplierName)
+                        .createdBy(receipt.getCreatedBy() != null ? receipt.getCreatedBy() : 1L)
+                        .expenseDate(receipt.getReceiptDate() != null ? receipt.getReceiptDate() : LocalDate.now())
+                        .build());
+                log.info("Auto-created expense for receipt #{}: amount={}, date={}", receipt.getId(), totalAmount, receipt.getReceiptDate());
+            } catch (Exception ex) {
+                log.error("Failed to auto-create expense for completed receipt #{}: {}", receipt.getId(), ex.getMessage());
+            }
+        }
 
         return mapToResponse(receipt);
     }
