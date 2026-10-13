@@ -89,3 +89,17 @@ export const useCancelOrder = () => {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi hủy đơn'),
   });
 };
+
+export const useSplitOrder = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: any }) => orderApi.split(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['order'] });
+      qc.invalidateQueries({ queryKey: ['tables'] });
+      toast.success('Tách đơn hàng thành công, đã tạo đơn mới');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi tách đơn hàng'),
+  });
+};

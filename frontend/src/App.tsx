@@ -59,6 +59,7 @@ export function App() {
           <Route path="/kitchen" element={<KitchenDisplayPage />} />
           <Route path="/shifts" element={<ShiftManagePage />} />
           <Route path="/orders/:id/invoice" element={<InvoiceViewPage />} />
+          <Route path="/orders/invoice/:id" element={<InvoiceViewPage />} />
           <Route path="/qr" element={<QrManagePage />} />
           <Route path="/reports/stock" element={<StockReportPage />} />
 

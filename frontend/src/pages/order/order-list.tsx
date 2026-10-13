@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useOrders, useCompleteOrder, usePayOrder, useCancelOrder } from '@/hooks/use-orders';
+import { useOrders, useCompleteOrder, usePayOrder, useCancelOrder, useSplitOrder } from '@/hooks/use-orders';
 import { PageHeader } from '@/components/shared/page-header';
 import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { EmptyState } from '@/components/shared/empty-state';
@@ -12,16 +12,25 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split, Download, Calendar, RotateCcw } from 'lucide-react';
+import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split, Download, Calendar, RotateCcw, MoreHorizontal, User, Phone, Tag, Percent, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrderStatus, SaleOrder } from '@/types/order';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
+import { orderApi } from '@/api/order.api';
+import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { ExportDropdown } from '@/components/shared/export-dropdown';
 
 export function OrderListPage() {
   const { user } = useAuthStore();
   const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlOrderId = searchParams.get('orderId');
+  const urlTableId = searchParams.get('tableId');
+  const openedRef = React.useRef<string | null>(null);
+
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('');
   const [startDate, setStartDate] = React.useState('');
@@ -33,11 +42,62 @@ export function OrderListPage() {
   const completeMutation = useCompleteOrder();
   const payMutation = usePayOrder();
   const cancelMutation = useCancelOrder();
+  const splitMutation = useSplitOrder();
 
   const [confirmCancelId, setConfirmCancelId] = React.useState<number | null>(null);
   const [selectedOrder, setSelectedOrder] = React.useState<SaleOrder | null>(null);
   const [splitModalOrder, setSplitModalOrder] = React.useState<SaleOrder | null>(null);
   const [splitQuantities, setSplitQuantities] = React.useState<Record<number, number>>({});
+  const [splitCustomerName, setSplitCustomerName] = React.useState('');
+  const [splitCustomerPhone, setSplitCustomerPhone] = React.useState('');
+  const [splitDiscount, setSplitDiscount] = React.useState<number | string>(0);
+  const [splitVatRate, setSplitVatRate] = React.useState<number | string>(0);
+  const [splitNote, setSplitNote] = React.useState('');
+
+  // Auto-open order details modal if navigated from Table Map (orderId or tableId in URL)
+  React.useEffect(() => {
+    if (urlOrderId && openedRef.current !== `order-${urlOrderId}`) {
+      openedRef.current = `order-${urlOrderId}`;
+      const idNum = Number(urlOrderId);
+      if (!isNaN(idNum)) {
+        orderApi
+          .getById(idNum)
+          .then((order) => {
+            if (order) setSelectedOrder(order);
+          })
+          .catch((err) => {
+            console.error('Không tìm thấy đơn hàng theo URL:', err);
+          });
+      }
+    } else if (!urlOrderId && urlTableId && openedRef.current !== `table-${urlTableId}`) {
+      const raw = data?.content || (Array.isArray(data) ? data : []);
+      if (raw.length > 0) {
+        openedRef.current = `table-${urlTableId}`;
+        const tId = Number(urlTableId);
+        const match =
+          raw.find((o) => o.tableId === tId && (o.status === 'OPEN' || o.status === 'SERVED')) ||
+          raw.find((o) => o.tableId === tId);
+        if (match) {
+          orderApi
+            .getById(match.id)
+            .then((order) => {
+              if (order) setSelectedOrder(order);
+            })
+            .catch(() => setSelectedOrder(match));
+        }
+      }
+    }
+  }, [urlOrderId, urlTableId, data]);
+
+  const handleCloseDetailDialog = () => {
+    setSelectedOrder(null);
+    if (searchParams.has('orderId') || searchParams.has('tableId')) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('orderId');
+      newParams.delete('tableId');
+      setSearchParams(newParams, { replace: true });
+    }
+  };
 
   // Preset Handlers
   const setFilterToday = () => {
@@ -84,22 +144,47 @@ export function OrderListPage() {
       init[idx] = 0;
     });
     setSplitQuantities(init);
+    setSplitCustomerName(order.customerName ? `${order.customerName} (Tách)` : '');
+    setSplitCustomerPhone(order.customerPhone || '');
+    setSplitDiscount(0);
+    setSplitVatRate(order.vatRate || 0);
+    setSplitNote('');
     setSplitModalOrder(order);
   };
 
   const handleConfirmSplit = () => {
     if (!splitModalOrder) return;
     const splitItems = (splitModalOrder.items || [])
-      .map((item, idx) => ({ ...item, splitQty: splitQuantities[idx] || 0 }))
-      .filter((i) => i.splitQty > 0);
+      .map((item, idx) => ({
+        menuId: item.menuId,
+        qty: splitQuantities[idx] || 0,
+        note: item.note,
+      }))
+      .filter((i) => i.qty > 0);
 
     if (splitItems.length === 0) {
       toast.error('Vui lòng chọn ít nhất 1 món để tách đơn!');
       return;
     }
 
-    toast.success(`Đã tách ${splitItems.length} món từ Đơn #${splitModalOrder.id} thành đơn hàng mới thành công!`);
-    setSplitModalOrder(null);
+    splitMutation.mutate(
+      {
+        id: splitModalOrder.id,
+        payload: {
+          customerName: splitCustomerName.trim() || undefined,
+          customerPhone: splitCustomerPhone.trim() || undefined,
+          discount: Number(splitDiscount) || 0,
+          vatRate: Number(splitVatRate) || 0,
+          note: splitNote.trim() || undefined,
+          items: splitItems,
+        },
+      },
+      {
+        onSuccess: () => {
+          setSplitModalOrder(null);
+        },
+      }
+    );
   };
 
   const rawOrders: SaleOrder[] = data?.content || (Array.isArray(data) ? data : []);
@@ -224,20 +309,16 @@ export function OrderListPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Quản lý Đơn hàng & POS" description="Theo dõi quy trình phục vụ, đơn tại bàn, thanh toán và in hoá đơn.">
-        <div className="flex items-center gap-2">
-          {filteredOrders.length > 0 && (
-            <>
-              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
-                <Download className="h-4 w-4 text-emerald-600" />
-                Xuất Excel
-              </Button>
-              <Button variant="outline" onClick={handlePrintOrderReport} className="gap-2">
-                <Printer className="h-4 w-4" />
-                In báo cáo đơn
-              </Button>
-            </>
-          )}
-          <Button onClick={() => navigate('/orders/create')} className="gap-2 shadow-md">
+        <div className="flex items-center gap-2.5">
+          <ExportDropdown
+            onExportExcel={filteredOrders.length > 0 ? handleExportExcel : undefined}
+            onPrintReport={filteredOrders.length > 0 ? handlePrintOrderReport : undefined}
+            excelLabel="Xuất danh sách đơn hàng (.xlsx)"
+            printLabel="In sổ doanh số & đơn hàng (A4)"
+            disabled={isLoading || filteredOrders.length === 0}
+            buttonText="Xuất & In doanh số"
+          />
+          <Button onClick={() => navigate('/orders/create')} className="gap-2 shadow-xs font-semibold">
             <Plus className="h-4 w-4" />
             Tạo đơn mới (POS)
           </Button>
@@ -350,77 +431,106 @@ export function OrderListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id} className="hover:bg-muted/30">
-                  <TableCell className="font-mono font-bold text-xs">#{order.id}</TableCell>
-                  <TableCell className="font-semibold">{order.tableNumber || 'Mang đi'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{order.customerName || 'Khách vãng lai'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{formatDateTime(order.orderTime)}</TableCell>
-                  <TableCell className="font-bold text-primary">{formatVND(order.totalAmount)}</TableCell>
-                  <TableCell>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-muted text-foreground">
-                      {order.source}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={order.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {/* View Details Dialog Button */}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0"
-                        title="Xem chi tiết đơn"
+              {filteredOrders.map((order) => {
+                const isTarget =
+                  (urlOrderId && String(order.id) === urlOrderId) ||
+                  (urlTableId && String(order.tableId) === urlTableId);
+                return (
+                  <TableRow
+                    key={order.id}
+                    className={cn(
+                      'hover:bg-muted/30 transition-colors',
+                      isTarget && 'bg-primary/10 border-l-4 border-l-primary font-medium'
+                    )}
+                  >
+                    <TableCell>
+                      <button
+                        type="button"
+                        className="font-mono font-bold text-xs text-primary hover:underline cursor-pointer"
+                        title="Bấm để xem chi tiết đơn"
                         onClick={() => setSelectedOrder(order)}
                       >
-                        <Eye className="h-4 w-4 text-primary" />
-                      </Button>
-
-                      {order.status === 'OPEN' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs font-semibold text-blue-600 border-blue-200 hover:bg-blue-50"
-                          onClick={() => completeMutation.mutate(order.id)}
+                        #{order.id}
+                      </button>
+                    </TableCell>
+                    <TableCell className="font-semibold">{order.tableNumber || 'Mang đi'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{order.customerName || 'Khách vãng lai'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatDateTime(order.orderTime)}</TableCell>
+                    <TableCell className="font-bold text-primary">{formatVND(order.totalAmount)}</TableCell>
+                    <TableCell>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-muted text-foreground">
+                        {order.source}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={order.status} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu
+                        align="end"
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                            title="Thao tác"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Thao tác</span>
+                          </Button>
+                        }
+                      >
+                        <DropdownMenuItem
+                          icon={<Eye className="h-4 w-4 text-primary" />}
+                          onClick={() => setSelectedOrder(order)}
                         >
-                          <Check className="h-3.5 w-3.5 mr-1" /> Phục vụ
-                        </Button>
-                      )}
+                          Xem chi tiết đơn
+                        </DropdownMenuItem>
 
-                      {order.status === 'SERVED' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs font-semibold text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                          onClick={() => payMutation.mutate(order.id)}
+                        <DropdownMenuItem
+                          icon={<Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                          onClick={() => navigate(`/orders/invoice/${order.id}`)}
                         >
-                          <CreditCard className="h-3.5 w-3.5 mr-1" /> Thu tiền
-                        </Button>
-                      )}
+                          In hóa đơn
+                        </DropdownMenuItem>
 
-                      {order.status !== 'PAID' && order.status !== 'CANCEL' && canCancel && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                          title="Hủy đơn hàng"
-                          onClick={() => setConfirmCancelId(order.id)}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      )}
+                        {order.status === 'OPEN' && (
+                          <DropdownMenuItem
+                            variant="default"
+                            icon={<Check className="h-4 w-4 text-blue-600" />}
+                            onClick={() => completeMutation.mutate(order.id)}
+                          >
+                            Phục vụ xong
+                          </DropdownMenuItem>
+                        )}
 
-                      <Link to={`/orders/invoice/${order.id}`}>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" title="In hóa đơn">
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {order.status === 'SERVED' && (
+                          <DropdownMenuItem
+                            variant="success"
+                            icon={<CreditCard className="h-4 w-4 text-emerald-600" />}
+                            onClick={() => payMutation.mutate(order.id)}
+                          >
+                            Thu tiền ({formatVND(order.totalAmount)})
+                          </DropdownMenuItem>
+                        )}
+
+                        {order.status !== 'PAID' && order.status !== 'CANCEL' && canCancel && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="danger"
+                              icon={<XCircle className="h-4 w-4 text-rose-600" />}
+                              onClick={() => setConfirmCancelId(order.id)}
+                            >
+                              Hủy đơn hàng
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -429,7 +539,7 @@ export function OrderListPage() {
       {/* Order Detail Modal Dialog */}
       <Dialog
         open={!!selectedOrder}
-        onOpenChange={(open) => !open && setSelectedOrder(null)}
+        onOpenChange={(open) => !open && handleCloseDetailDialog()}
         title={`Chi tiết Đơn hàng #${selectedOrder?.id || ''}`}
         description={`Bàn: ${selectedOrder?.tableNumber || 'Mang đi'} • Khách: ${selectedOrder?.customerName || 'Vãng lai'}`}
       >
@@ -477,18 +587,57 @@ export function OrderListPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" size="sm" className="gap-1.5 text-purple-600 border-purple-200" onClick={() => { handleOpenSplit(selectedOrder); setSelectedOrder(null); }}>
-                <Split className="h-4 w-4" /> Tách đơn
-              </Button>
-              <Link to={`/orders/invoice/${selectedOrder.id}`}>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Printer className="h-4 w-4" /> Xem & In hóa đơn
+            <div className="flex items-center justify-between gap-2 pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-purple-600 border-purple-200 hover:bg-purple-50"
+                  onClick={() => {
+                    handleOpenSplit(selectedOrder);
+                    setSelectedOrder(null);
+                  }}
+                >
+                  <Split className="h-4 w-4" /> Tách đơn
                 </Button>
-              </Link>
-              <Button size="sm" onClick={() => setSelectedOrder(null)}>
-                Đóng
-              </Button>
+                <Link to={`/orders/invoice/${selectedOrder.id}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Printer className="h-4 w-4" /> In hóa đơn
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {selectedOrder.status === 'OPEN' && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                    isLoading={completeMutation.isPending}
+                    onClick={() => {
+                      completeMutation.mutate(selectedOrder.id);
+                      handleCloseDetailDialog();
+                    }}
+                  >
+                    <Check className="h-4 w-4" /> Phục vụ xong
+                  </Button>
+                )}
+                {selectedOrder.status === 'SERVED' && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    isLoading={payMutation.isPending}
+                    onClick={() => {
+                      payMutation.mutate(selectedOrder.id);
+                      handleCloseDetailDialog();
+                    }}
+                  >
+                    <CreditCard className="h-4 w-4" /> Thu tiền ({formatVND(selectedOrder.totalAmount)})
+                  </Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={handleCloseDetailDialog}>
+                  Đóng
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -500,86 +649,213 @@ export function OrderListPage() {
         open={splitModalOrder !== null}
         onOpenChange={(open) => !open && setSplitModalOrder(null)}
         title={`Tách Đơn Hàng #${splitModalOrder?.id || ''}`}
-        description="Chọn số lượng từng món muốn tách ra để tạo hóa đơn thanh toán riêng."
-        className="max-w-lg"
+        description="Chọn món và điền thông tin để tách thành đơn hàng mới độc lập."
+        className="max-w-xl max-h-[90vh] overflow-y-auto"
       >
-        {splitModalOrder && (
-          <div className="space-y-4">
-            <div className="p-3 bg-muted rounded-xl text-xs flex justify-between items-center">
-              <span>Bàn: <strong>{splitModalOrder.tableNumber || 'Mang đi'}</strong></span>
-              <span>Tổng tiền hiện tại: <strong>{formatVND(splitModalOrder.totalAmount)}</strong></span>
-            </div>
+        {splitModalOrder && (() => {
+          const splitSubtotal = (splitModalOrder.items || []).reduce(
+            (sum, item, idx) => sum + item.price * (splitQuantities[idx] || 0),
+            0
+          );
+          const discountVal = Number(splitDiscount) || 0;
+          const vatRateVal = Number(splitVatRate) || 0;
+          const taxableVal = Math.max(0, splitSubtotal - discountVal);
+          const vatVal = Math.round(taxableVal * (vatRateVal / 100));
+          const totalVal = taxableVal + vatVal;
+          const totalSplitCount = Object.values(splitQuantities).reduce((s, q) => s + q, 0);
 
-            <div className="border rounded-xl divide-y max-h-60 overflow-y-auto">
-              {(splitModalOrder.items || []).map((item, idx) => {
-                const currentSplit = splitQuantities[idx] || 0;
-                return (
-                  <div key={idx} className="p-3 flex items-center justify-between text-xs">
-                    <div>
-                      <p className="font-bold text-sm">{item.menuName || `Món #${item.menuId}`}</p>
-                      <p className="text-muted-foreground">{formatVND(item.price)} • Tổng có: {item.qty} phần</p>
-                    </div>
+          return (
+            <div className="space-y-4 pt-1">
+              {/* Order Info Badge */}
+              <div className="p-3 bg-muted/60 border rounded-xl text-xs flex justify-between items-center">
+                <span>Bàn hiện tại: <strong className="text-foreground">{splitModalOrder.tableNumber || 'Mang đi'}</strong></span>
+                <span>Tổng đơn gốc: <strong className="text-foreground">{formatVND(splitModalOrder.totalAmount)}</strong></span>
+              </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground">Tách:</span>
-                      <div className="flex items-center gap-1 border rounded-lg p-0.5">
-                        <button
-                          type="button"
-                          className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted font-bold"
-                          onClick={() => setSplitQuantities((prev) => ({ ...prev, [idx]: Math.max(0, currentSplit - 1) }))}
-                        >
-                          -
-                        </button>
-                        <span className="w-6 text-center font-bold">{currentSplit}</span>
-                        <button
-                          type="button"
-                          className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted font-bold"
-                          onClick={() => setSplitQuantities((prev) => ({ ...prev, [idx]: Math.min(item.qty, currentSplit + 1) }))}
-                        >
-                          +
-                        </button>
-                      </div>
+              {/* Thông tin đơn mới */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-purple-600" /> Thông tin đơn hàng mới
+                </p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Tên khách hàng
+                    </label>
+                    <div className="relative">
+                      <User className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                      <Input
+                        className="h-8 text-xs pl-8"
+                        placeholder="Nhập tên khách hàng..."
+                        value={splitCustomerName}
+                        onChange={(e) => setSplitCustomerName(e.target.value)}
+                      />
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Số điện thoại
+                    </label>
+                    <div className="relative">
+                      <Phone className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                      <Input
+                        className="h-8 text-xs pl-8"
+                        placeholder="09xx xxx xxx..."
+                        value={splitCustomerPhone}
+                        onChange={(e) => setSplitCustomerPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-            {/* Split Summary */}
-            <div className="p-3 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900 rounded-xl text-xs space-y-1">
-              <div className="flex justify-between">
-                <span>Số món tách ra đơn mới:</span>
-                <span className="font-bold text-purple-600">
-                  {Object.values(splitQuantities).reduce((s, q) => s + q, 0)} phần
-                </span>
-              </div>
-              <div className="flex justify-between font-bold text-sm text-purple-700 dark:text-purple-300 border-t border-purple-200 pt-1">
-                <span>Thành tiền đơn mới:</span>
-                <span>
-                  {formatVND(
-                    (splitModalOrder.items || []).reduce(
-                      (sum, item, idx) => sum + item.price * (splitQuantities[idx] || 0),
-                      0
-                    )
-                  )}
-                </span>
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Giảm giá trực tiếp (VNĐ)
+                    </label>
+                    <div className="relative">
+                      <Tag className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        min="0"
+                        className="h-8 text-xs pl-8"
+                        placeholder="0"
+                        value={splitDiscount}
+                        onChange={(e) => setSplitDiscount(Math.max(0, Number(e.target.value)))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Thuế VAT (%)
+                    </label>
+                    <div className="relative">
+                      <Percent className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="h-8 text-xs pl-8"
+                        placeholder="0"
+                        value={splitVatRate}
+                        onChange={(e) => setSplitVatRate(Math.min(100, Math.max(0, Number(e.target.value))))}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setSplitModalOrder(null)}>
-                Hủy
-              </Button>
-              <Button
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
-                onClick={handleConfirmSplit}
-              >
-                <Split className="h-4 w-4 mr-1.5" />
-                Xác Nhận Tách Đơn Mới
-              </Button>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                    Ghi chú đơn mới
+                  </label>
+                  <div className="relative">
+                    <FileText className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                    <Input
+                      className="h-8 text-xs pl-8"
+                      placeholder="Ghi chú yêu cầu của khách (ví dụ: Thanh toán thẻ, mang về...)"
+                      value={splitNote}
+                      onChange={(e) => setSplitNote(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Danh sách món chọn tách */}
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="text-xs font-bold text-foreground">
+                    Chọn các món cần tách sang đơn mới:
+                  </label>
+                  <span className="text-[11px] text-muted-foreground">
+                    Đã chọn: <strong className="text-purple-600">{totalSplitCount}</strong> phần
+                  </span>
+                </div>
+                <div className="border rounded-xl divide-y max-h-52 overflow-y-auto">
+                  {(splitModalOrder.items || []).map((item, idx) => {
+                    const currentSplit = splitQuantities[idx] || 0;
+                    return (
+                      <div key={idx} className="p-2.5 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors">
+                        <div>
+                          <p className="font-bold text-sm text-foreground">{item.menuName || `Món #${item.menuId}`}</p>
+                          <p className="text-muted-foreground text-[11px]">{formatVND(item.price)} • Đơn gốc có: <strong>{item.qty}</strong></p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                            onClick={() => setSplitQuantities((prev) => ({ ...prev, [idx]: item.qty }))}
+                          >
+                            Tất cả
+                          </Button>
+                          <div className="flex items-center gap-1 border rounded-lg p-0.5 bg-background">
+                            <button
+                              type="button"
+                              className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted font-bold transition-colors"
+                              onClick={() => setSplitQuantities((prev) => ({ ...prev, [idx]: Math.max(0, currentSplit - 1) }))}
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center font-bold text-xs">{currentSplit}</span>
+                            <button
+                              type="button"
+                              className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted font-bold transition-colors"
+                              onClick={() => setSplitQuantities((prev) => ({ ...prev, [idx]: Math.min(item.qty, currentSplit + 1) }))}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bảng tổng kết giá trị đơn mới */}
+              <div className="p-3 bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 rounded-xl text-xs space-y-1.5">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Tạm tính món tách:</span>
+                  <span className="font-semibold text-foreground">{formatVND(splitSubtotal)}</span>
+                </div>
+                {discountVal > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Giảm giá:</span>
+                    <span className="font-semibold text-emerald-600">-{formatVND(discountVal)}</span>
+                  </div>
+                )}
+                {vatRateVal > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Thuế VAT ({vatRateVal}%):</span>
+                    <span className="font-semibold text-foreground">+{formatVND(vatVal)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-sm text-purple-700 dark:text-purple-300 border-t border-purple-200 dark:border-purple-900/50 pt-1.5">
+                  <span>TỔNG TIỀN ĐƠN MỚI:</span>
+                  <span className="text-base">{formatVND(totalVal)}</span>
+                </div>
+              </div>
+
+              {/* Thao tác */}
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" onClick={() => setSplitModalOrder(null)}>
+                  Hủy
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={totalSplitCount === 0 || splitMutation.isPending}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
+                  onClick={handleConfirmSplit}
+                >
+                  <Split className="h-4 w-4 mr-1.5" />
+                  {splitMutation.isPending ? 'Đang tạo đơn...' : 'Xác Nhận Tách Đơn Mới'}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </Dialog>
 
       {/* Cancel Order Confirm Dialog */}

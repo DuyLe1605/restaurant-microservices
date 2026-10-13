@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   Plus,
   Minus,
@@ -27,6 +28,8 @@ import {
   Check,
   AlertTriangle,
   CheckCircle2,
+  Receipt,
+  BadgePercent,
 } from 'lucide-react';
 import { MenuItem } from '@/types/menu';
 import { toast } from 'sonner';
@@ -702,34 +705,40 @@ export function OrderCreatePage() {
                     <p className="text-[11px] text-muted-foreground mt-0.5">Chọn món từ danh mục bên trái hoặc bấm "Chọn nhanh nhiều món"</p>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1 divide-y">
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1 divide-y divide-border/60">
                     {cartEntries.map((e) => (
-                      <div key={e.item.id} className="pt-2 first:pt-0">
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex-1 pr-2">
-                            <p className="font-bold text-foreground leading-tight line-clamp-1">{e.item.name}</p>
+                      <div key={e.item.id} className="pt-2.5 first:pt-0">
+                        <div className="flex items-center justify-between text-xs gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-foreground leading-tight truncate">{e.item.name}</p>
                             <p className="text-[11px] text-muted-foreground mt-0.5">
                               {formatVND(e.item.price)} × {e.qty} = <span className="font-bold text-foreground">{formatVND(e.item.price * e.qty)}</span>
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center rounded-lg border border-border/80 bg-background overflow-hidden p-0.5 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveQty(e.item, 1)}
+                                className="h-6 w-6 rounded-md hover:bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                -
+                              </button>
+                              <span className="text-xs font-bold px-2 text-center min-w-[20px]">{e.qty}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleAddQty(e.item, 1)}
+                                className="h-6 w-6 rounded-md hover:bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                +
+                              </button>
+                            </div>
                             <button
-                              onClick={() => handleRemoveQty(e.item, 1)}
-                              className="h-5 w-5 rounded bg-muted hover:bg-muted/80 flex items-center justify-center text-xs font-bold"
-                            >
-                              -
-                            </button>
-                            <span className="text-xs font-bold px-1">{e.qty}</span>
-                            <button
-                              onClick={() => handleAddQty(e.item, 1)}
-                              className="h-5 w-5 rounded bg-muted hover:bg-muted/80 flex items-center justify-center text-xs font-bold"
-                            >
-                              +
-                            </button>
-                            <button
+                              type="button"
                               onClick={() => handleClearItem(e.item.id)}
-                              className="text-muted-foreground hover:text-destructive ml-1 p-1"
+                              className="text-muted-foreground/60 hover:text-destructive p-1 rounded-md hover:bg-destructive/10 transition-colors"
+                              title="Xóa món"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -739,11 +748,18 @@ export function OrderCreatePage() {
                         {/* Dish Note in Cart */}
                         <div className="mt-1 flex items-center justify-between text-[11px]">
                           <button
+                            type="button"
                             onClick={() => setNoteModalItem({ menuId: e.item.id, name: e.item.name, note: e.note || '' })}
-                            className="text-muted-foreground hover:text-primary flex items-center gap-1 italic text-[11px]"
+                            className="text-muted-foreground hover:text-primary flex items-center gap-1 italic text-[11px] transition-colors"
                           >
-                            <MessageSquare className="h-2.5 w-2.5" />
-                            {e.note ? <span className="text-amber-700 dark:text-amber-400 font-medium not-italic">"{e.note}"</span> : 'Thêm ghi chú bếp...'}
+                            <MessageSquare className="h-2.5 w-2.5 shrink-0" />
+                            {e.note ? (
+                              <span className="text-amber-700 dark:text-amber-400 font-medium not-italic truncate max-w-[200px]">
+                                "{e.note}"
+                              </span>
+                            ) : (
+                              'Thêm ghi chú bếp...'
+                            )}
                           </button>
                         </div>
                       </div>
@@ -753,77 +769,167 @@ export function OrderCreatePage() {
               </div>
 
               {/* Billing breakdown */}
-              <div className="border-t pt-3 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tạm tính ({cartEntries.reduce((s, i) => s + i.qty, 0)} phần):</span>
-                  <span className="font-semibold">{formatVND(subtotal)}</span>
+              <div className="border-t pt-3 space-y-2.5">
+                {/* Subtotal */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <Receipt className="h-3.5 w-3.5 text-muted-foreground/70" />
+                    Tạm tính ({cartEntries.reduce((s, i) => s + i.qty, 0)} phần):
+                  </span>
+                  <span className="font-bold text-foreground text-sm">{formatVND(subtotal)}</span>
                 </div>
 
-                {/* Discount */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Giảm giá (VNĐ):</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="5000"
-                      className="h-7 w-28 text-right text-xs"
-                      value={discount}
-                      onChange={(e) => setDiscount(Number(e.target.value))}
-                    />
+                {/* Discount Card Container */}
+                <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <BadgePercent className="h-3.5 w-3.5 text-primary" />
+                      <span>Giảm giá:</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {discount > 0 && (
+                        <span className="text-xs font-bold text-rose-500 dark:text-rose-400">
+                          -{formatVND(discount)}
+                        </span>
+                      )}
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          step="5000"
+                          value={discount === 0 ? '' : discount}
+                          placeholder="0"
+                          onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-24 h-7 text-right pr-6 pl-2 text-xs font-semibold rounded-lg border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <span className="absolute right-2 top-1.5 text-[10px] text-muted-foreground pointer-events-none font-medium">
+                          đ
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  {/* Preset discounts */}
-                  <div className="flex items-center justify-end gap-1 text-[10px]">
-                    <button type="button" onClick={() => setDiscount(0)} className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80">0đ</button>
-                    <button type="button" onClick={() => setDiscount(20000)} className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80">-20k</button>
-                    <button type="button" onClick={() => setDiscount(50000)} className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80">-50k</button>
-                    <button type="button" onClick={() => setDiscount(Math.round(subtotal * 0.1))} className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80">-10%</button>
+
+                  {/* Preset discount pills */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { label: '0đ', value: 0 },
+                      { label: '-20k', value: 20000 },
+                      { label: '-50k', value: 50000 },
+                      { label: '-10%', value: Math.round(subtotal * 0.1) },
+                    ].map((preset) => {
+                      const isSelected = discount === preset.value;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => setDiscount(preset.value)}
+                          className={cn(
+                            'py-1 px-1 text-[11px] font-semibold rounded-md transition-all text-center border',
+                            isSelected
+                              ? 'bg-primary text-primary-foreground border-primary shadow-xs font-bold'
+                              : 'bg-background hover:bg-muted text-muted-foreground hover:text-foreground border-border/60'
+                          )}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* VAT */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground">VAT (%):</span>
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => setVatRate(0)} className={`text-[10px] px-1.5 py-0.5 rounded ${vatRate === 0 ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted'}`}>0%</button>
-                    <button type="button" onClick={() => setVatRate(8)} className={`text-[10px] px-1.5 py-0.5 rounded ${vatRate === 8 ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted'}`}>8%</button>
-                    <button type="button" onClick={() => setVatRate(10)} className={`text-[10px] px-1.5 py-0.5 rounded ${vatRate === 10 ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted'}`}>10%</button>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      className="h-7 w-14 text-right text-xs ml-1"
-                      value={vatRate}
-                      onChange={(e) => setVatRate(Number(e.target.value))}
-                    />
+                {/* VAT Card Container */}
+                <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                      <span>Thuế VAT:</span>
+                      {vatRate > 0 && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                          {vatRate}%
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      +{formatVND(vatAmount)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {[0, 8, 10].map((rate) => {
+                      const isSelected = vatRate === rate;
+                      return (
+                        <button
+                          key={rate}
+                          type="button"
+                          onClick={() => setVatRate(rate)}
+                          className={cn(
+                            'flex-1 py-1 text-[11px] font-semibold rounded-md transition-all border text-center',
+                            isSelected
+                              ? 'bg-primary text-primary-foreground border-primary shadow-xs font-bold'
+                              : 'bg-background hover:bg-muted text-muted-foreground hover:text-foreground border-border/60'
+                          )}
+                        >
+                          {rate}%
+                        </button>
+                      );
+                    })}
+
+                    <div className="relative w-16 shrink-0">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={vatRate}
+                        onChange={(e) => setVatRate(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                        className="w-full h-7 text-right pr-5 pl-2 text-xs font-semibold rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        title="Tùy chỉnh % VAT"
+                      />
+                      <span className="absolute right-1.5 top-1.5 text-[10px] text-muted-foreground pointer-events-none">
+                        %
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Total */}
-                <div className="flex justify-between font-extrabold text-base pt-2 border-t text-primary">
-                  <span>Tổng thanh toán:</span>
-                  <span className="text-lg text-emerald-600 dark:text-emerald-400">{formatVND(totalAmount)}</span>
+                {/* Grand Total Card */}
+                <div className="p-3.5 rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/25">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+                        Tổng thanh toán
+                      </span>
+                      <p className="text-[10px] text-muted-foreground/80 mt-0.5">
+                        Đã bao gồm VAT & Giảm trừ
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-black tracking-tight text-primary">
+                        {formatVND(totalAmount)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Order Note */}
-                <div className="pt-2">
-                  <Input
-                    placeholder="Ghi chú chung cho đơn hàng (bàn VIP, phục vụ nhanh...)..."
+                <div className="relative">
+                  <MessageSquare className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Ghi chú đơn hàng (bàn VIP, phục vụ nhanh...)..."
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="text-xs h-8"
+                    className="w-full h-8 pl-8 pr-3 text-xs rounded-lg border border-input bg-background placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
 
               <Button
-                className="w-full h-11 font-bold text-sm shadow-lg bg-gradient-to-r from-primary to-primary/90 hover:opacity-95 transition-all"
+                className="w-full h-11 font-bold text-sm shadow-md bg-primary hover:bg-primary/90 text-primary-foreground transition-all flex items-center justify-center gap-2 rounded-xl"
                 disabled={cartEntries.length === 0}
                 isLoading={createOrderMutation.isPending}
                 onClick={handleSubmit}
               >
-                <Check className="h-4 w-4 mr-2" />
-                Xác nhận mở đơn (OPEN)
+                <Check className="h-4 w-4" />
+                <span>Xác nhận mở đơn (OPEN)</span>
               </Button>
             </CardContent>
           </Card>

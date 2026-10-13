@@ -113,4 +113,12 @@ public class OrderController {
         OrderResponse response = orderService.updateAllItemsStatus(orderId, request.getStatus());
         return ResponseEntity.ok(ApiResponse.ok(response, "Cập nhật trạng thái toàn bộ món thành công"));
     }
+
+    @PostMapping("/{id}/split")
+    public ResponseEntity<ApiResponse<OrderResponse>> splitOrder(
+            @PathVariable Long id,
+            @Valid @RequestBody OrderSplitRequest request) {
+        OrderResponse response = orderService.splitOrder(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response, "Tách đơn hàng thành công"));
+    }
 }

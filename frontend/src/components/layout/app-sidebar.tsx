@@ -83,6 +83,42 @@ export function AppSidebar() {
   const { user } = useAuthStore();
   const location = useLocation();
 
+  const isItemActive = React.useCallback(
+    (itemHref: string) => {
+      const pathname = location.pathname;
+
+      // Đơn hàng POS: /orders/create và /orders/new
+      if (pathname === '/orders/create' || pathname === '/orders/new') {
+        return itemHref === '/orders/create';
+      }
+
+      // Trùng khớp tuyệt đối
+      if (pathname === itemHref) {
+        return true;
+      }
+
+      // Dashboard chỉ active khi đúng /dashboard
+      if (itemHref === '/dashboard') {
+        return false;
+      }
+
+      // Sổ đơn hàng: active khi vào trang con chi tiết hóa đơn (ví dụ: /orders/12/invoice),
+      // nhưng loại trừ /orders/create và /orders/new vì đã có mục POS riêng
+      if (itemHref === '/orders') {
+        return pathname.startsWith('/orders/') && pathname !== '/orders/create' && pathname !== '/orders/new';
+      }
+
+      // Trang công thức /recipes thuộc mục Thực đơn & Công thức (/menu)
+      if (itemHref === '/menu' && pathname === '/recipes') {
+        return true;
+      }
+
+      // Khớp các trang con khác (ví dụ: /inventory/receipts/...)
+      return pathname.startsWith(`${itemHref}/`);
+    },
+    [location.pathname]
+  );
+
   return (
     <aside className="w-64 border-r bg-card h-screen sticky top-0 flex flex-col justify-between hidden md:flex select-none">
       <div className="flex flex-col h-full overflow-hidden">
@@ -115,7 +151,7 @@ export function AppSidebar() {
                 <div className="space-y-0.5">
                   {visibleItems.map((item) => {
                     const Icon = item.icon;
-                    const isActive = location.pathname === item.href || (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
+                    const isActive = isItemActive(item.href);
 
                     return (
                       <NavLink

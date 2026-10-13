@@ -479,6 +479,104 @@ public class OrderServiceImpl implements OrderService {
         return mapToResponse(order);
     }
 
+    @Override
+    @Transactional
+    public OrderResponse splitOrder(Long id, OrderSplitRequest request) {
+        SaleOrder originalOrder = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(OrderConstants.MSG_ORDER_NOT_FOUND + id));
+
+        if (originalOrder.getStatus() != OrderStatus.OPEN && originalOrder.getStatus() != OrderStatus.SERVED) {
+            throw new BadRequestException("Chỉ có thể tách đơn khi đơn hàng đang mở (OPEN) hoặc đang phục vụ (SERVED)");
+        }
+
+        List<SaleOrderDetail> originalDetails = detailRepository.findBySaleOrderId(id);
+        List<SaleOrderDetail> newDetailsToSave = new ArrayList<>();
+        BigDecimal newSubtotal = BigDecimal.ZERO;
+
+        for (OrderItemRequest splitItem : request.getItems()) {
+            if (splitItem.getQty() == null || splitItem.getQty() <= 0) {
+                continue;
+            }
+
+            SaleOrderDetail match = originalDetails.stream()
+                    .filter(d -> d.getMenuId().equals(splitItem.getMenuId()))
+                    .findFirst()
+                    .orElseThrow(() -> new BadRequestException("Món #" + splitItem.getMenuId() + " không có trong đơn hàng gốc #" + id));
+
+            if (splitItem.getQty() > match.getQty()) {
+                throw new BadRequestException("Số lượng tách (" + splitItem.getQty() + ") vượt quá số lượng hiện có (" + match.getQty() + ") của món " + match.getMenuName());
+            }
+
+            // Deduct from original detail
+            int remainingQty = match.getQty() - splitItem.getQty();
+            if (remainingQty == 0) {
+                detailRepository.delete(match);
+            } else {
+                match.setQty(remainingQty);
+                detailRepository.save(match);
+            }
+
+            // Prepare item for new order
+            BigDecimal itemSubtotal = match.getPrice().multiply(BigDecimal.valueOf(splitItem.getQty()));
+            newSubtotal = newSubtotal.add(itemSubtotal);
+
+            newDetailsToSave.add(SaleOrderDetail.builder()
+                    .menuId(match.getMenuId())
+                    .menuName(match.getMenuName())
+                    .qty(splitItem.getQty())
+                    .price(match.getPrice())
+                    .status(match.getStatus() != null ? match.getStatus() : OrderDetailStatus.ORDERED)
+                    .note(splitItem.getNote() != null ? splitItem.getNote() : match.getNote())
+                    .build());
+        }
+
+        if (newDetailsToSave.isEmpty()) {
+            throw new BadRequestException("Vui lòng chọn ít nhất 1 món để tách đơn");
+        }
+
+        // Recalculate and save original order
+        recalculateOrder(originalOrder);
+        orderRepository.save(originalOrder);
+
+        // Build and save new order
+        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
+        BigDecimal vatRate = request.getVatRate() != null ? request.getVatRate() : (originalOrder.getVatRate() != null ? originalOrder.getVatRate() : BigDecimal.ZERO);
+
+        BigDecimal taxableAmount = newSubtotal.subtract(discount).max(BigDecimal.ZERO);
+        BigDecimal vatAmount = taxableAmount.multiply(vatRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal totalAmount = taxableAmount.add(vatAmount);
+
+        Long tableId = request.getTableId() != null ? request.getTableId() : originalOrder.getTableId();
+
+        SaleOrder newOrder = SaleOrder.builder()
+                .tableId(tableId)
+                .waiterId(originalOrder.getWaiterId())
+                .orderTime(LocalDateTime.now())
+                .status(originalOrder.getStatus())
+                .subtotal(newSubtotal)
+                .discount(discount)
+                .vatRate(vatRate)
+                .totalAmount(totalAmount)
+                .source(originalOrder.getSource())
+                .customerName(request.getCustomerName() != null && !request.getCustomerName().isBlank() ? request.getCustomerName() : originalOrder.getCustomerName())
+                .customerPhone(request.getCustomerPhone() != null && !request.getCustomerPhone().isBlank() ? request.getCustomerPhone() : originalOrder.getCustomerPhone())
+                .note(request.getNote())
+                .build();
+
+        SaleOrder savedNewOrder = orderRepository.save(newOrder);
+
+        for (SaleOrderDetail d : newDetailsToSave) {
+            d.setSaleOrderId(savedNewOrder.getId());
+        }
+        detailRepository.saveAll(newDetailsToSave);
+
+        // Publish event for new order
+        eventPublisher.publishOrderCreated(savedNewOrder.getId());
+
+        log.info("Split order #{} successfully into new order #{}", id, savedNewOrder.getId());
+        return mapToResponse(savedNewOrder);
+    }
+
     private OrderDetailResponse mapDetailToResponse(SaleOrderDetail d) {
         return OrderDetailResponse.builder()
                 .id(d.getId())

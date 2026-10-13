@@ -55,4 +55,18 @@ export const orderApi = {
     const res = await api.put<ApiResponse<any>>(`/orders/${orderId}/items/status`, { status });
     return res.data.data;
   },
+  split: async (
+    id: number,
+    payload: {
+      customerName?: string;
+      customerPhone?: string;
+      discount?: number;
+      vatRate?: number;
+      note?: string;
+      items: { menuId: number; qty: number; note?: string }[];
+    }
+  ): Promise<SaleOrder> => {
+    const res = await api.post<ApiResponse<SaleOrder>>(`/orders/${id}/split`, payload);
+    return res.data.data;
+  },
 };

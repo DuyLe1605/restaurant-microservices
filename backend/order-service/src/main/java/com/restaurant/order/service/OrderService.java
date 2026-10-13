@@ -17,4 +17,5 @@ public interface OrderService {
     InvoiceResponse generateInvoice(Long id);
     OrderResponse updateItemStatus(Long orderId, Long itemId, com.restaurant.order.enums.OrderDetailStatus status);
     OrderResponse updateAllItemsStatus(Long orderId, com.restaurant.order.enums.OrderDetailStatus status);
+    OrderResponse splitOrder(Long id, OrderSplitRequest request);
 }
