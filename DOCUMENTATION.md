@@ -53,21 +53,36 @@ Hệ thống thiết lập cơ chế phân quyền ma trận 3 vai trò chính t
 
 ---
 
-## 4. Hệ Thống Xuất Báo Cáo & Lọc Dữ Liệu Theo Thời Gian (Export & Analytics Engine)
+## 4. Hệ Thống Xuất Báo Cáo, In Ấn A4 & Kiểm Thử Toàn Diện (Export, Print & Test Suite)
 
-Được thiết kế tại module dùng chung [`frontend/src/lib/export-utils.ts`](frontend/src/lib/export-utils.ts), cung cấp hai luồng xuất dữ liệu chuẩn mực:
+Được thiết kế tại module dùng chung [`frontend/src/lib/export-utils.ts`](frontend/src/lib/export-utils.ts) và bộ kịch bản kiểm thử tự động [`scripts/test-e2e-flow.js`](scripts/test-e2e-flow.js):
 
-1. **Xuất Excel (CSV UTF-8 BOM)**:
-   - Thêm tiền tố Byte Order Mark (`\uFEFF`) để Microsoft Excel trên Windows tự động nhận diện bảng mã UTF-8 tiếng Việt có dấu 100%, không bị vỡ font hay biến dạng ký tự.
-   - Tự động bổ sung Metadata (Kỳ thống kê, Bộ phận lập, Thời gian xuất) và hàng Tổng cộng (Summary) ở cuối bảng tính.
-2. **Template In Ấn A4 & Xuất PDF Trực Quan**:
-   - Chuẩn bố cục in ấn A4, tự động căn lề và co giãn cột thông minh.
-   - Khung thẻ KPI tóm tắt đầu trang hiển thị doanh thu, chi phí, lợi nhuận, số lượng đơn.
-   - Bảng kê chi tiết kẻ viền sắc nét, phần tóm tắt tài chính và khu vực ký tên 3 bên (Người Lập Biểu, Kế Toán, Giám Đốc/Chủ Quán).
-3. **Bộ lọc thời gian linh hoạt (Ngày cụ thể & Khoảng ngày)**:
-   - Hỗ trợ chọn xuất riêng 1 ngày hoặc một khoảng ngày tuỳ ý.
-   - Hàng nút Preset nhanh: `Hôm nay`, `Hôm qua`, `7 ngày qua`, `Tháng này`, `30 ngày qua`, `Tất cả`.
-   - Tên file và tiêu đề báo cáo tự động đồng bộ theo ngày: ví dụ `Bao_Cao_Doanh_Thu_Ngay_2026-10-07.csv` hoặc `Bao_Cao_Doanh_Thu_2026-10-01_den_2026-10-07.csv`.
+1. **Xuất Bảng Tính Excel Chuẩn Doanh Nghiệp (`.xlsx`)**:
+   - Tích hợp thư viện bảng tính `xlsx` chính quy, tạo trực tiếp file `.xlsx` nguyên bản, không gặp cảnh báo mất dữ liệu hay lỗi locale delimiter.
+   - **Phân tách cột chuẩn xác 100%**: Dữ liệu nằm đúng từng cột A, B, C, D... không bị dồn cục vào cột A.
+   - **Tự động căn chỉnh độ rộng cột (`colWidths`)**: Tính toán tự động theo độ dài nội dung để không bị khuất chữ hay lỗi `###`.
+   - **Sáp nhập ô tiêu đề (`merges`)**: Dòng tiêu đề hệ thống và tên báo cáo được hợp nhất ở đầu trang bảng tính.
+   - **Tự động bổ sung Metadata & Hàng Tổng cộng (Summary)**: Kèm khối ký xác nhận 3 bên trang trọng.
+
+2. **Template In Ấn Biên Bản A4 & Xuất PDF Trực Quan**:
+   - Chuẩn bố cục trang giấy in A4 chân thực trên màn hình với nền Slate tối, bóng đổ trang giấy và thanh điều khiển chuyên dụng (In ngay, Đóng popup).
+   - **Khung thẻ KPI tự động cân đối**: Phân bố lưới cột đồng đều 1 dòng (`grid-template-columns: repeat(N, 1fr)`), không bị rớt dòng lẻ loi.
+   - **Bảng kê chi tiết sắc nét**: Căn lề tiền tệ sang phải, trạng thái và mã ở giữa, tên mặt hàng sang trái.
+   - **Khối ký xác nhận 3 - 4 bên chuẩn mực**: Tự động chia đều chiều rộng cột, chữ ký và chức danh không bị cắt mép đáy trang.
+   - Tự động gộp tiêu đề phụ và kỳ báo cáo để tránh trùng lặp nội dung.
+
+3. **Cột Thao Tác Gọn Gàng Với Menu Thả Xuống (DropdownMenu)**:
+   - Thay thế toàn bộ các hàng nút thao tác rải rác trên tất cả các bảng (Đơn hàng, Bàn ăn, Kho hàng, Thực đơn, Chi phí, Ca làm, Nhân sự) bằng nút 3 chấm hiện đại kèm `DropdownMenu`.
+
+4. **Kịch Bản Kiểm Thử Tự Động Toàn Bộ Luồng (End-to-End Test Suite)**:
+   - File thực thi: [`scripts/test-e2e-flow.js`](scripts/test-e2e-flow.js).
+   - Kiểm thử tự động 17 bước xuyên suốt toàn bộ hệ sinh thái vi dịch vụ:
+     1. Xác thực đăng nhập JWT & Quản lý người dùng.
+     2. Điều phối bàn ăn: Chuyển bàn (`/transfer`) & Ghép bàn (`/merge`).
+     3. Bán hàng POS: Tạo đơn, thêm món, **tách đơn kèm metadata khách hàng & chiết khấu**, phục vụ KDS, xuất hóa đơn và thanh toán giải phóng bàn.
+     4. Quản lý kho: Kiểm tra danh mục NVL, phiếu nhập kho, phiếu xuất kho.
+     5. Báo cáo thống kê: Doanh thu bán hàng & Phân tầng an toàn tồn kho.
+   - Lệnh chạy kiểm thử: `node scripts/test-e2e-flow.js` (Kết quả: Đạt 17/17 bước thành công 100%).
 
 ---
 

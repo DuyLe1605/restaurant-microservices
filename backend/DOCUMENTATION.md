@@ -109,9 +109,12 @@ Hệ thống Backend được thiết kế theo chuẩn **Kiến trúc Hướng 
 - `GET /api/orders`: Lấy sổ danh sách đơn hàng (lọc theo trạng thái `OPEN`, `PAID`, `CANCEL`).
 - `POST /api/orders`: Mở đơn hàng mới tại quầy POS.
 - `POST /api/orders/:id/add-items`: Gọi thêm món vào đơn hàng đang mở.
+- `POST /api/orders/:id/split`: **Tách đơn hàng độc lập**: Hỗ trợ đầy đủ thông tin khách hàng mới (`customerName`, `customerPhone`), chiết khấu trực tiếp (`discount`), thuế suất VAT (`vatRate`), ghi chú đơn (`note`), và danh sách món tách (`items`). Tự động trừ số lượng khỏi đơn gốc và tạo đơn mới trong một giao dịch CSDL nguyên tử.
 - `PUT /api/orders/:orderId/items/:itemId/status`: **KDS Endpoint**: Cập nhật trạng thái chế biến của từng món ăn (`ORDERED` -> `COOKING` -> `COOKED` -> `SERVED`).
 - `PUT /api/orders/:orderId/items/status`: **KDS Bulk Endpoint**: Cập nhật hàng loạt toàn bộ vé ("Nấu tất cả", "Nấu xong hết", "Ra món hết").
-- `POST /api/orders/:id/pay`: Thanh toán đơn hàng, đổi trạng thái bàn về `FREE`.
+- `POST /api/orders/:id/complete`: Hoàn thành phục vụ đơn hàng (`SERVED`), tự động gửi event trừ tồn kho nguyên liệu theo định mức.
+- `GET /api/orders/:id/invoice`: Trích xuất hóa đơn thanh toán chi tiết kèm bảng tính thuế VAT, giảm giá và thông tin nhà hàng.
+- `POST /api/orders/:id/pay`: Thanh toán đơn hàng (`PAID`), đổi trạng thái bàn về `FREE`.
 - `POST /api/orders/:id/cancel`: Hủy đơn hàng và giải phóng bàn ăn.
 
 ### 3.5. Kho & Nguyên Liệu (`inventory-service`)
