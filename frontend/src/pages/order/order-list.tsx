@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split, Download, Calendar, RotateCcw, MoreHorizontal, User, Phone, Tag, Percent, FileText, Crown, Award, Coins, UserPlus, RefreshCw, Users } from 'lucide-react';
+import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split, Download, Calendar, RotateCcw, MoreHorizontal, User, Phone, Tag, Percent, FileText, Crown, Award, Coins, UserPlus, RefreshCw, Users, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrderStatus, SaleOrder } from '@/types/order';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
@@ -472,7 +472,7 @@ export function OrderListPage() {
           onAction={() => navigate('/orders/create')}
         />
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="rounded-xl border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
@@ -519,7 +519,13 @@ export function OrderListPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={order.status} />
+                      <QuickStatusCell
+                        order={order}
+                        canCancel={canCancel}
+                        onComplete={() => completeMutation.mutate(order.id)}
+                        onPay={() => payMutation.mutate(order.id)}
+                        onCancel={() => setConfirmCancelId(order.id)}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu
@@ -1072,6 +1078,132 @@ export function OrderListPage() {
           if (confirmCancelId) cancelMutation.mutate(confirmCancelId);
         }}
       />
+    </div>
+  );
+}
+
+// ─── Quick Status Cell ────────────────────────────────────────────────────────
+interface QuickStatusCellProps {
+  order: SaleOrder;
+  canCancel: boolean;
+  onComplete: () => void;
+  onPay: () => void;
+  onCancel: () => void;
+}
+
+function QuickStatusCell({ order, canCancel, onComplete, onPay, onCancel }: QuickStatusCellProps) {
+  const [open, setOpen] = React.useState(false);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const popRef = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState({ top: 0, left: 0 });
+  const isTerminal = order.status === 'PAID' || order.status === 'CANCEL';
+
+  const openPopover = () => {
+    if (isTerminal || !btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + window.scrollY + 6, left: rect.left + window.scrollX });
+    setOpen(true);
+  };
+
+  // Close on outside click
+  React.useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (
+        popRef.current && !popRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Close on scroll
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = () => setOpen(false);
+    window.addEventListener('scroll', handler, true);
+    return () => window.removeEventListener('scroll', handler, true);
+  }, [open]);
+
+  // Status badge style map
+  const badgeConfig: Record<string, { label: string; cls: string }> = {
+    OPEN:   { label: 'Đang mở',       cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700' },
+    SERVED: { label: 'Đã phục vụ',    cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-300 dark:border-blue-700' },
+    PAID:   { label: 'Đã thanh toán', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700' },
+    CANCEL: { label: 'Đã hủy',        cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-300 dark:border-rose-700' },
+  };
+
+  const cfg = badgeConfig[order.status] ?? { label: order.status, cls: 'bg-muted text-foreground border border-border' };
+
+  return (
+    <div className="relative inline-block">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={openPopover}
+        title={isTerminal ? cfg.label : 'Nhấn để đổi trạng thái nhanh'}
+        className={cn(
+          'inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full transition-all duration-150',
+          cfg.cls,
+          !isTerminal && 'cursor-pointer hover:opacity-80 hover:shadow-sm active:scale-95',
+          isTerminal && 'cursor-default',
+        )}
+      >
+        {cfg.label}
+        {!isTerminal && (
+          <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
+        )}
+      </button>
+
+      {open && typeof document !== 'undefined' && (
+        <div
+          ref={popRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+          className="min-w-[185px] rounded-xl border bg-popover shadow-xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+        >
+          <div className="px-3 py-2 border-b bg-muted/40">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Chuyển trạng thái
+            </p>
+          </div>
+          <div className="p-1.5 flex flex-col gap-0.5">
+            {order.status === 'OPEN' && (
+              <button
+                type="button"
+                onClick={() => { onComplete(); setOpen(false); }}
+                className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-300 transition-colors"
+              >
+                <Check className="h-3.5 w-3.5 shrink-0" />
+                Phục vụ xong (SERVED)
+              </button>
+            )}
+            {order.status === 'SERVED' && (
+              <button
+                type="button"
+                onClick={() => { onPay(); setOpen(false); }}
+                className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 transition-colors"
+              >
+                <CreditCard className="h-3.5 w-3.5 shrink-0" />
+                Thu tiền ({formatVND(order.totalAmount)})
+              </button>
+            )}
+            {canCancel && (
+              <>
+                <div className="h-px bg-border my-0.5" />
+                <button
+                  type="button"
+                  onClick={() => { onCancel(); setOpen(false); }}
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-700 dark:text-rose-300 transition-colors"
+                >
+                  <XCircle className="h-3.5 w-3.5 shrink-0" />
+                  Hủy đơn hàng
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
