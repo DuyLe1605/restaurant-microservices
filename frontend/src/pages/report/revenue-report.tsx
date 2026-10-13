@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Calendar, Eye, Download, Printer, RotateCcw } from 'lucide-react';
+import { Calendar, Eye, Download, Printer, RotateCcw, MoreHorizontal } from 'lucide-react';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { ExportDropdown } from '@/components/shared/export-dropdown';
 
 export function RevenueReportPage() {
   const [start, setStart] = React.useState(
@@ -170,15 +172,15 @@ export function RevenueReportPage() {
         title="Báo Cáo Doanh Thu & Lợi Nhuận"
         description="Thống kê doanh thu bán hàng, chi phí và lợi nhuận ròng tổng hợp theo ngày"
       >
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportExcel} disabled={isLoading || !report}>
-            <Download className="h-4 w-4 mr-2" />
-            Xuất Excel (CSV)
-          </Button>
-          <Button onClick={handlePrintReport} disabled={isLoading || !report}>
-            <Printer className="h-4 w-4 mr-2" />
-            In / Xuất PDF
-          </Button>
+        <div className="flex items-center gap-2.5">
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onPrintReport={handlePrintReport}
+            excelLabel="Xuất bảng tính doanh thu (.xlsx)"
+            printLabel="In biểu mẫu doanh thu chuẩn (A4)"
+            disabled={isLoading || !report}
+            buttonText="Xuất & In doanh thu"
+          />
         </div>
       </PageHeader>
 
@@ -316,9 +318,27 @@ export function RevenueReportPage() {
                       <TableCell className="font-semibold text-rose-600">{formatVND(d.expense)}</TableCell>
                       <TableCell className="font-bold">{formatVND(d.profit)}</TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => setSelectedDay(d.date)}>
-                          <Eye className="h-3.5 w-3.5 mr-1" /> Xem đơn
-                        </Button>
+                        <DropdownMenu
+                          align="end"
+                          trigger={
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                              title="Thao tác"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Thao tác</span>
+                            </Button>
+                          }
+                        >
+                          <DropdownMenuItem
+                            icon={<Eye className="h-4 w-4 text-primary" />}
+                            onClick={() => setSelectedDay(d.date)}
+                          >
+                            Xem các đơn trong ngày
+                          </DropdownMenuItem>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

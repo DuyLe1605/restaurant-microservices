@@ -7,6 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 
 import { Button } from '@/components/ui/button';
 import { Download, Printer } from 'lucide-react';
+import { ExportDropdown } from '@/components/shared/export-dropdown';
 import { exportToExcel, printProfessionalReport } from '@/lib/export-utils';
 
 export function StockReportPage() {
@@ -104,15 +105,15 @@ export function StockReportPage() {
         title="Báo Cáo Phân Tầng Tồn Kho"
         description="Phân loại nguyên liệu theo các ngưỡng an toàn: Khẩn cấp (Hết hàng), Cảnh báo (Dưới ngưỡng) và Ổn định"
       >
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportExcel} disabled={isLoading || !stockItems?.length}>
-            <Download className="h-4 w-4 mr-2" />
-            Xuất Excel (CSV)
-          </Button>
-          <Button onClick={handlePrintReport} disabled={isLoading || !stockItems?.length}>
-            <Printer className="h-4 w-4 mr-2" />
-            In / Xuất PDF
-          </Button>
+        <div className="flex items-center gap-2.5">
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onPrintReport={handlePrintReport}
+            excelLabel="Xuất báo cáo tồn kho (.xlsx)"
+            printLabel="In bảng phân tầng tồn kho (A4)"
+            disabled={isLoading || !stockItems?.length}
+            buttonText="Xuất & In tồn kho"
+          />
         </div>
       </PageHeader>
 
