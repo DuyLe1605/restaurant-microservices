@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split, Download, Calendar, RotateCcw, MoreHorizontal, User, Phone, Tag, Percent, FileText } from 'lucide-react';
+import { Plus, Check, CreditCard, XCircle, Printer, Search, Eye, Split, Download, Calendar, RotateCcw, MoreHorizontal, User, Phone, Tag, Percent, FileText, Crown, Award, Coins, UserPlus, RefreshCw, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrderStatus, SaleOrder } from '@/types/order';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
@@ -22,6 +22,8 @@ import { orderApi } from '@/api/order.api';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ExportDropdown } from '@/components/shared/export-dropdown';
+import { useCustomerLookup, useRegisterCustomer } from '@/hooks/use-customers';
+import { Customer } from '@/api/customer.api';
 
 export function OrderListPage() {
   const { user } = useAuthStore();
@@ -53,6 +55,29 @@ export function OrderListPage() {
   const [splitDiscount, setSplitDiscount] = React.useState<number | string>(0);
   const [splitVatRate, setSplitVatRate] = React.useState<number | string>(0);
   const [splitNote, setSplitNote] = React.useState('');
+
+  // Split Order - Customer Loyalty & Membership state
+  const [splitCustomerMode, setSplitCustomerMode] = React.useState<'WALK_IN' | 'MEMBER'>('WALK_IN');
+  const [splitMemberPhone, setSplitMemberPhone] = React.useState('');
+  const [splitActiveMember, setSplitActiveMember] = React.useState<Customer | null>(null);
+  const [splitShowRegister, setSplitShowRegister] = React.useState(false);
+  const [splitNewName, setSplitNewName] = React.useState('');
+  const [splitNewEmail, setSplitNewEmail] = React.useState('');
+
+  const splitRegisterMutation = useRegisterCustomer();
+  const {
+    data: splitQueriedCustomer,
+    isFetching: isSplitSearching,
+  } = useCustomerLookup(splitMemberPhone, splitCustomerMode === 'MEMBER' && splitMemberPhone.trim().length >= 9);
+
+  React.useEffect(() => {
+    if (splitQueriedCustomer) {
+      setSplitActiveMember(splitQueriedCustomer);
+      setSplitCustomerName(splitQueriedCustomer.name);
+      setSplitCustomerPhone(splitQueriedCustomer.phone);
+      setSplitShowRegister(false);
+    }
+  }, [splitQueriedCustomer]);
 
   // Auto-open order details modal if navigated from Table Map (orderId or tableId in URL)
   React.useEffect(() => {
@@ -146,10 +171,41 @@ export function OrderListPage() {
     setSplitQuantities(init);
     setSplitCustomerName(order.customerName ? `${order.customerName} (Tách)` : '');
     setSplitCustomerPhone(order.customerPhone || '');
+    setSplitCustomerMode(order.customerPhone ? 'MEMBER' : 'WALK_IN');
+    setSplitMemberPhone(order.customerPhone || '');
+    setSplitActiveMember(null);
+    setSplitShowRegister(false);
+    setSplitNewName('');
+    setSplitNewEmail('');
     setSplitDiscount(0);
     setSplitVatRate(order.vatRate || 0);
     setSplitNote('');
     setSplitModalOrder(order);
+  };
+
+  const handleSplitQuickRegister = () => {
+    if (!splitNewName.trim()) {
+      toast.error('Vui lòng nhập họ tên khách hàng');
+      return;
+    }
+    const phone = splitMemberPhone.trim();
+    if (!phone || phone.length < 9) {
+      toast.error('Vui lòng nhập số điện thoại hợp lệ');
+      return;
+    }
+    splitRegisterMutation.mutate(
+      { name: splitNewName.trim(), phone, email: splitNewEmail.trim() || undefined },
+      {
+        onSuccess: (newCust) => {
+          setSplitActiveMember(newCust);
+          setSplitCustomerName(newCust.name);
+          setSplitCustomerPhone(newCust.phone);
+          setSplitShowRegister(false);
+          setSplitNewName('');
+          setSplitNewEmail('');
+        },
+      }
+    );
   };
 
   const handleConfirmSplit = () => {
@@ -672,41 +728,186 @@ export function OrderListPage() {
                 <span>Tổng đơn gốc: <strong className="text-foreground">{formatVND(splitModalOrder.totalAmount)}</strong></span>
               </div>
 
-              {/* Thông tin đơn mới */}
+              {/* Thông tin đơn mới & Hội viên */}
               <div className="p-3.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
-                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 text-purple-600" /> Thông tin đơn hàng mới
-                </p>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                      Tên khách hàng
-                    </label>
-                    <div className="relative">
-                      <User className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
-                      <Input
-                        className="h-8 text-xs pl-8"
-                        placeholder="Nhập tên khách hàng..."
-                        value={splitCustomerName}
-                        onChange={(e) => setSplitCustomerName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                      Số điện thoại
-                    </label>
-                    <div className="relative">
-                      <Phone className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
-                      <Input
-                        className="h-8 text-xs pl-8"
-                        placeholder="09xx xxx xxx..."
-                        value={splitCustomerPhone}
-                        onChange={(e) => setSplitCustomerPhone(e.target.value)}
-                      />
-                    </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-purple-600" /> Khách hàng đơn mới
+                  </p>
+                  {/* Mode switcher: Walk-in vs Member */}
+                  <div className="flex items-center rounded-lg p-0.5 bg-muted border text-[10px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSplitCustomerMode('WALK_IN');
+                        setSplitActiveMember(null);
+                        setSplitMemberPhone('');
+                      }}
+                      className={cn(
+                        'px-2 py-0.5 rounded-md transition-all',
+                        splitCustomerMode === 'WALK_IN'
+                          ? 'bg-background text-foreground shadow-xs font-bold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      Khách Vãng Lai
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSplitCustomerMode('MEMBER')}
+                      className={cn(
+                        'px-2 py-0.5 rounded-md transition-all flex items-center gap-1',
+                        splitCustomerMode === 'MEMBER'
+                          ? 'bg-purple-600 text-white shadow-xs font-bold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <Crown className="h-3 w-3" />
+                      Hội Viên
+                    </button>
                   </div>
                 </div>
+
+                {/* Mode Walk-in */}
+                {splitCustomerMode === 'WALK_IN' && (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                        Tên khách hàng
+                      </label>
+                      <div className="relative">
+                        <User className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                        <Input
+                          className="h-8 text-xs pl-8"
+                          placeholder="Nhập tên khách hàng..."
+                          value={splitCustomerName}
+                          onChange={(e) => setSplitCustomerName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                        Số điện thoại
+                      </label>
+                      <div className="relative">
+                        <Phone className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                        <Input
+                          className="h-8 text-xs pl-8"
+                          placeholder="09xx xxx xxx..."
+                          value={splitCustomerPhone}
+                          onChange={(e) => setSplitCustomerPhone(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mode Member */}
+                {splitCustomerMode === 'MEMBER' && (
+                  <div className="space-y-2">
+                    {!splitActiveMember ? (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Input
+                            className="h-8 text-xs pl-8 font-medium"
+                            placeholder="Nhập SĐT hội viên (ví dụ: 0988776655)..."
+                            value={splitMemberPhone}
+                            onChange={(e) => {
+                              setSplitMemberPhone(e.target.value);
+                              if (splitShowRegister) setSplitShowRegister(false);
+                            }}
+                          />
+                          <Phone className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                          {isSplitSearching && (
+                            <RefreshCw className="h-3.5 w-3.5 absolute right-2.5 top-2.5 animate-spin text-purple-600" />
+                          )}
+                        </div>
+
+                        {splitMemberPhone.trim().length >= 9 && !isSplitSearching && !splitQueriedCustomer && (
+                          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                                Chưa có hội viên với SĐT này
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSplitShowRegister(!splitShowRegister)}
+                                className="h-6 text-[10px] px-2 font-bold border-amber-500/30 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
+                              >
+                                <UserPlus className="h-3 w-3 mr-1" />
+                                {splitShowRegister ? 'Đóng' : 'Đăng ký nhanh'}
+                              </Button>
+                            </div>
+
+                            {splitShowRegister && (
+                              <div className="space-y-1.5 pt-1 border-t border-amber-500/20">
+                                <Input
+                                  placeholder="Họ tên khách hàng (*)..."
+                                  value={splitNewName}
+                                  onChange={(e) => setSplitNewName(e.target.value)}
+                                  className="text-xs h-7.5 bg-background"
+                                />
+                                <Input
+                                  placeholder="Email (tuỳ chọn)..."
+                                  value={splitNewEmail}
+                                  onChange={(e) => setSplitNewEmail(e.target.value)}
+                                  className="text-xs h-7.5 bg-background"
+                                />
+                                <Button
+                                  size="sm"
+                                  disabled={splitRegisterMutation.isPending || !splitNewName.trim()}
+                                  onClick={handleSplitQuickRegister}
+                                  className="w-full h-7 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white"
+                                >
+                                  {splitRegisterMutation.isPending ? 'Đang tạo...' : 'Tạo & Chọn Hội Viên Ngay'}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Active Member Banner */
+                      <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/25 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-extrabold text-foreground mr-1.5">{splitActiveMember.name}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full border bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-300">
+                              {splitActiveMember.tierLabel} • {splitActiveMember.points} điểm
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSplitActiveMember(null);
+                              setSplitMemberPhone('');
+                              setSplitCustomerName('');
+                              setSplitCustomerPhone('');
+                            }}
+                            className="text-[10px] text-muted-foreground hover:text-destructive underline"
+                          >
+                            Đổi khách
+                          </button>
+                        </div>
+
+                        {splitActiveMember.discountPercent > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const disc = Math.round(splitSubtotal * (splitActiveMember.discountPercent / 100));
+                              setSplitDiscount(disc);
+                              toast.success(`Đã áp dụng giảm ${splitActiveMember.discountPercent}% cho hội viên ${splitActiveMember.name}`);
+                            }}
+                            className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded-md hover:underline"
+                          >
+                            🏷️ Áp dụng giảm {splitActiveMember.discountPercent}% hạng {splitActiveMember.tierLabel}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>

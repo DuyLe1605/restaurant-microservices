@@ -16,6 +16,7 @@ import {
   DollarSign,
   BarChart3,
   Users,
+  Award,
 } from 'lucide-react';
 
 interface NavItem {
@@ -46,6 +47,7 @@ const navSections: NavSection[] = [
       { name: 'Sổ đơn hàng', href: '/orders', icon: Receipt },
       { name: 'Màn hình Bếp (KDS)', href: '/kitchen', icon: ChefHat, badge: 'Live', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
       { name: 'Sơ đồ bàn & Đặt bàn', href: '/tables', icon: Table },
+      { name: 'Khách hàng & Hội viên', href: '/customers', icon: Award, badge: 'Loyalty', badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
       { name: 'Quản lý ca làm việc', href: '/shifts', icon: Clock },
       { name: 'Mã QR bàn ăn', href: '/qr', icon: QrCode },
     ],

@@ -33,6 +33,20 @@ import {
 } from 'lucide-react';
 import { MenuItem } from '@/types/menu';
 import { toast } from 'sonner';
+import { useCustomerLookup, useRegisterCustomer } from '@/hooks/use-customers';
+import { Customer, CustomerTier } from '@/api/customer.api';
+import {
+  User,
+  Users,
+  Award,
+  Crown,
+  Gift,
+  Phone,
+  UserPlus,
+  RefreshCw,
+  Coins,
+  ArrowRight,
+} from 'lucide-react';
 
 interface CartItem {
   item: MenuItem;
@@ -56,6 +70,31 @@ export function OrderCreatePage() {
   const [discount, setDiscount] = React.useState<number>(0);
   const [vatRate, setVatRate] = React.useState<number>(8); // 8% VAT standard
   const [note, setNote] = React.useState('');
+
+  // Customer Loyalty & Membership state
+  const [customerMode, setCustomerMode] = React.useState<'WALK_IN' | 'MEMBER'>('WALK_IN');
+  const [memberPhoneQuery, setMemberPhoneQuery] = React.useState('');
+  const [activeMember, setActiveMember] = React.useState<Customer | null>(null);
+  const [showQuickRegister, setShowQuickRegister] = React.useState(false);
+  const [quickRegName, setQuickRegName] = React.useState('');
+  const [quickRegEmail, setQuickRegEmail] = React.useState('');
+
+  const registerCustomerMutation = useRegisterCustomer();
+  const {
+    data: queriedCustomer,
+    isFetching: isSearchingMember,
+    isError: isLookupError,
+  } = useCustomerLookup(memberPhoneQuery, customerMode === 'MEMBER' && memberPhoneQuery.trim().length >= 9);
+
+  // Sync queried customer with activeMember
+  React.useEffect(() => {
+    if (queriedCustomer) {
+      setActiveMember(queriedCustomer);
+      setCustomerName(queriedCustomer.name);
+      setCustomerPhone(queriedCustomer.phone);
+      setShowQuickRegister(false);
+    }
+  }, [queriedCustomer]);
 
   // Search & Category filter for Menu catalog
   const [search, setSearch] = React.useState('');
@@ -305,6 +344,66 @@ export function OrderCreatePage() {
   const taxable = Math.max(0, subtotal - discount);
   const vatAmount = Math.round((taxable * vatRate) / 100);
   const totalAmount = taxable + vatAmount;
+
+  // Estimated loyalty points for this order (10.000đ = 1pt * tier multiplier)
+  const memberMultiplier = activeMember?.pointMultiplier || 1.0;
+  const estimatedPoints = Math.floor(subtotal / 10000) * memberMultiplier;
+
+  // Quick register new member from POS
+  const handleQuickRegister = () => {
+    if (!quickRegName.trim()) {
+      toast.error('Vui lòng nhập họ tên khách hàng');
+      return;
+    }
+    const phoneToRegister = memberPhoneQuery.trim();
+    if (!phoneToRegister || phoneToRegister.length < 9) {
+      toast.error('Vui lòng nhập số điện thoại hợp lệ (tối thiểu 9 số)');
+      return;
+    }
+
+    registerCustomerMutation.mutate(
+      {
+        name: quickRegName.trim(),
+        phone: phoneToRegister,
+        email: quickRegEmail.trim() || undefined,
+      },
+      {
+        onSuccess: (newCust) => {
+          setActiveMember(newCust);
+          setCustomerName(newCust.name);
+          setCustomerPhone(newCust.phone);
+          setShowQuickRegister(false);
+          setQuickRegName('');
+          setQuickRegEmail('');
+        },
+      }
+    );
+  };
+
+  // Apply tier discount
+  const handleApplyTierDiscount = () => {
+    if (!activeMember || activeMember.discountPercent <= 0) return;
+    const tierDiscount = Math.round(subtotal * (activeMember.discountPercent / 100));
+    setDiscount(tierDiscount);
+    toast.success(`Đã áp dụng giảm giá ${activeMember.discountPercent}% hạng ${activeMember.tierLabel} (-${formatVND(tierDiscount)})`);
+  };
+
+  // Redeem points as cash discount
+  const handleRedeemPoints = () => {
+    if (!activeMember || activeMember.points <= 0) return;
+    const redeemDiscount = Math.min(activeMember.pointsValue, subtotal);
+    setDiscount(redeemDiscount);
+    toast.success(`Đã áp dụng đổi ${activeMember.points} điểm thành giảm giá (-${formatVND(redeemDiscount)})`);
+  };
+
+  // Clear selected member
+  const handleClearMember = () => {
+    setActiveMember(null);
+    setMemberPhoneQuery('');
+    setCustomerName('');
+    setCustomerPhone('');
+    setShowQuickRegister(false);
+  };
 
   const handleSubmit = () => {
     if (cartEntries.length === 0) return;
@@ -668,19 +767,230 @@ export function OrderCreatePage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Input
-                    placeholder="Tên khách hàng..."
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="text-xs h-9"
-                  />
-                  <Input
-                    placeholder="Số điện thoại..."
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="text-xs h-9"
-                  />
+                {/* Customer / Loyalty System Widget */}
+                <div className="pt-2 border-t border-border/60 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-primary" />
+                      Khách Hàng & Hội Viên
+                    </span>
+                    {/* Toggle Walk-in vs Member */}
+                    <div className="flex items-center rounded-lg p-0.5 bg-muted border text-[11px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerMode('WALK_IN');
+                          handleClearMember();
+                        }}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md transition-all',
+                          customerMode === 'WALK_IN'
+                            ? 'bg-background text-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        Khách Vãng Lai
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCustomerMode('MEMBER')}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md transition-all flex items-center gap-1',
+                          customerMode === 'MEMBER'
+                            ? 'bg-primary text-primary-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <Crown className="h-3 w-3" />
+                        Hội Viên
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mode: WALK-IN */}
+                  {customerMode === 'WALK_IN' && (
+                    <div className="space-y-1.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          placeholder="Tên khách (tuỳ chọn)..."
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          className="text-xs h-8"
+                        />
+                        <Input
+                          placeholder="Số điện thoại..."
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          className="text-xs h-8"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                        <span>ℹ️</span> Khách chưa tích điểm. Chuyển sang "Hội Viên" để tích điểm hoặc áp dụng ưu đãi hạng.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Mode: MEMBER */}
+                  {customerMode === 'MEMBER' && (
+                    <div className="space-y-2">
+                      {!activeMember ? (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <Input
+                              placeholder="Nhập SĐT hội viên (ví dụ: 0988776655)..."
+                              value={memberPhoneQuery}
+                              onChange={(e) => {
+                                setMemberPhoneQuery(e.target.value);
+                                if (showQuickRegister) setShowQuickRegister(false);
+                              }}
+                              className="text-xs h-8.5 pl-8 font-medium"
+                            />
+                            <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                            {isSearchingMember && (
+                              <RefreshCw className="absolute right-2.5 top-2.5 h-3.5 w-3.5 animate-spin text-primary" />
+                            )}
+                          </div>
+
+                          {/* Member not found alert & quick register button */}
+                          {memberPhoneQuery.trim().length >= 9 && !isSearchingMember && !queriedCustomer && (
+                            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                                  Chưa tìm thấy hội viên với SĐT này
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setShowQuickRegister(!showQuickRegister)}
+                                  className="h-6 text-[10px] px-2 font-bold border-amber-500/30 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
+                                >
+                                  <UserPlus className="h-3 w-3 mr-1" />
+                                  {showQuickRegister ? 'Đóng form' : 'Đăng ký nhanh'}
+                                </Button>
+                              </div>
+
+                              {showQuickRegister && (
+                                <div className="space-y-1.5 pt-1 border-t border-amber-500/20">
+                                  <Input
+                                    placeholder="Họ tên khách hàng (*)..."
+                                    value={quickRegName}
+                                    onChange={(e) => setQuickRegName(e.target.value)}
+                                    className="text-xs h-7.5 bg-background"
+                                  />
+                                  <Input
+                                    placeholder="Email (tuỳ chọn)..."
+                                    value={quickRegEmail}
+                                    onChange={(e) => setQuickRegEmail(e.target.value)}
+                                    className="text-xs h-7.5 bg-background"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    disabled={registerCustomerMutation.isPending || !quickRegName.trim()}
+                                    onClick={handleQuickRegister}
+                                    className="w-full h-7 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                                  >
+                                    {registerCustomerMutation.isPending ? 'Đang tạo...' : 'Tạo & Chọn Hội Viên Ngay'}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        /* Active Member Profile Card */
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-pink-500/10 border border-indigo-500/25 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-extrabold text-xs text-foreground">{activeMember.name}</span>
+                                <span className={cn(
+                                  'text-[10px] font-bold px-1.5 py-0.2 rounded-full border',
+                                  activeMember.tier === 'DIAMOND'
+                                    ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/40'
+                                    : activeMember.tier === 'GOLD'
+                                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40'
+                                    : activeMember.tier === 'SILVER'
+                                    ? 'bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/40'
+                                    : 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/40'
+                                )}>
+                                  {activeMember.tier === 'DIAMOND' ? '💎' : activeMember.tier === 'GOLD' ? '🥇' : activeMember.tier === 'SILVER' ? '🥈' : '🥉'} {activeMember.tierLabel}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">{activeMember.phone}</p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleClearMember}
+                              className="text-[10px] text-muted-foreground hover:text-destructive underline"
+                            >
+                              Đổi khách
+                            </button>
+                          </div>
+
+                          {/* Loyalty Metrics */}
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50 text-[11px]">
+                            <div className="bg-background/80 p-1.5 rounded-lg border">
+                              <span className="text-muted-foreground text-[10px] block">Điểm tích luỹ:</span>
+                              <span className="font-extrabold text-amber-600 dark:text-amber-400">
+                                {activeMember.points} điểm
+                              </span>
+                              <span className="text-[10px] text-muted-foreground block">
+                                (~{formatVND(activeMember.pointsValue)})
+                              </span>
+                            </div>
+
+                            <div className="bg-background/80 p-1.5 rounded-lg border">
+                              <span className="text-muted-foreground text-[10px] block">Tiêu dùng tháng:</span>
+                              <span className="font-bold text-foreground">
+                                {formatVND(activeMember.currentMonthSpent)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground block truncate">
+                                Mục tiêu: {formatVND(activeMember.nextTierTarget)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Member Rewards Quick Actions */}
+                          <div className="pt-1 flex flex-wrap gap-1.5">
+                            {activeMember.discountPercent > 0 && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={handleApplyTierDiscount}
+                                className="h-6.5 text-[10px] font-bold border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10 px-2"
+                              >
+                                <Award className="h-3 w-3 mr-1" />
+                                Giảm {activeMember.discountPercent}% hạng {activeMember.tierLabel}
+                              </Button>
+                            )}
+
+                            {activeMember.points > 0 && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={handleRedeemPoints}
+                                className="h-6.5 text-[10px] font-bold border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 px-2"
+                              >
+                                <Coins className="h-3 w-3 mr-1" />
+                                Đổi {activeMember.points} điểm (-{formatVND(Math.min(activeMember.pointsValue, subtotal))})
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Estimated points message */}
+                          {subtotal > 0 && (
+                            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-800 dark:text-emerald-300 flex items-center justify-between font-medium">
+                              <span>Tích điểm dự kiến đơn này:</span>
+                              <span className="font-bold">+{estimatedPoints} điểm (x{activeMember.pointMultiplier})</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
