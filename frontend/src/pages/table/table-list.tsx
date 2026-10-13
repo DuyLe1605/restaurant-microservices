@@ -36,10 +36,12 @@ import {
   Clock,
   QrCode,
   Sparkles,
+  BellRing,
 } from 'lucide-react';
 import { RestaurantTable, TableStatus } from '@/types/table';
 import { SaleOrder } from '@/types/order';
 import { useAuthStore } from '@/stores/auth-store';
+import { useServiceRequests, useResolveServiceRequest } from '@/hooks/use-service-requests';
 
 export function TableListPage() {
   const navigate = useNavigate();
@@ -57,6 +59,8 @@ export function TableListPage() {
   const deleteMutation = useDeleteTable();
   const transferMutation = useTransferTable();
   const mergeMutation = useMergeTables();
+  const { data: pendingRequests = [] } = useServiceRequests(true);
+  const resolveServiceMutation = useResolveServiceRequest();
 
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('');
@@ -97,6 +101,14 @@ export function TableListPage() {
     });
     return map;
   }, [openOrders]);
+
+  const requestsByTableNumber = React.useMemo(() => {
+    const map = new Map<string, (typeof pendingRequests)[0]>();
+    pendingRequests.forEach((r) => {
+      map.set(r.tableNumber.trim().toLowerCase(), r);
+    });
+    return map;
+  }, [pendingRequests]);
 
   const filteredTables = React.useMemo(() => {
     return rawTables.filter((t) => {
@@ -285,12 +297,23 @@ export function TableListPage() {
           const isFree = t.status === 'FREE';
           const isReserved = t.status === 'RESERVED';
           const activeOrder = openOrdersByTable.get(t.id);
+          const cleanNum = t.number.replace(/\D/g, '');
+          const pendingReq =
+            requestsByTableNumber.get(t.number.trim().toLowerCase()) ||
+            (cleanNum ? requestsByTableNumber.get(cleanNum) : undefined) ||
+            (cleanNum ? requestsByTableNumber.get(`bàn ${cleanNum}`) : undefined) ||
+            (cleanNum ? requestsByTableNumber.get(`b${cleanNum}`) : undefined) ||
+            Array.from(requestsByTableNumber.values()).find(
+              (r) => cleanNum !== '' && r.tableNumber.replace(/\D/g, '') === cleanNum
+            );
 
           return (
             <div
               key={t.id}
               className={`relative rounded-2xl border bg-card p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
-                isOccupied
+                pendingReq
+                  ? 'border-rose-400 dark:border-rose-600 bg-rose-50/30 dark:bg-rose-950/20 ring-2 ring-rose-500/30'
+                  : isOccupied
                   ? 'border-rose-300 dark:border-rose-900 bg-rose-50/20 dark:bg-rose-950/10 ring-1 ring-rose-400/20'
                   : isReserved
                   ? 'border-amber-300 dark:border-amber-900 bg-amber-50/20 dark:bg-amber-950/10'
@@ -304,8 +327,45 @@ export function TableListPage() {
                     <span className="text-xl font-black tracking-tight">{t.number}</span>
                     <p className="text-[11px] text-muted-foreground font-mono">Bàn #{t.id}</p>
                   </div>
-                  <StatusBadge status={t.status} />
+                  <div className="flex items-center gap-1.5">
+                    {pendingReq && (
+                      <span className="h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center gap-1 animate-pulse">
+                        <BellRing className="h-3 w-3" /> Gọi PV
+                      </span>
+                    )}
+                    <StatusBadge status={t.status} />
+                  </div>
                 </div>
+
+                {/* Pending Service Request Banner */}
+                {pendingReq && (
+                  <div className="mb-3 p-2.5 bg-rose-500/10 dark:bg-rose-950/40 border border-rose-500/30 rounded-xl flex items-center justify-between gap-2 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="h-5 w-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
+                        🔔
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-rose-600 dark:text-rose-400 truncate">
+                          {pendingReq.typeLabel || 'Gọi phục vụ'}
+                        </p>
+                        {pendingReq.note && (
+                          <p className="text-[10px] text-muted-foreground truncate">{pendingReq.note}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[11px] font-bold px-2 shrink-0 border-rose-300 text-rose-700 dark:text-rose-300 hover:bg-rose-500 hover:text-white transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resolveServiceMutation.mutate(pendingReq.id);
+                      }}
+                    >
+                      Đã phục vụ ✓
+                    </Button>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 font-medium">
                   <Users className="h-3.5 w-3.5" />
